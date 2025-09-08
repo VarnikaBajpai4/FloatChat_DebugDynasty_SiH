@@ -1,8 +1,10 @@
 import os
 import psycopg2
 import traceback
-from core.transform import ingest_file
+from dotenv import load_dotenv
+from transform import ingest_file
 
+load_dotenv()  # take environment variables from .env.
 ROOT = "./argo_nc"    # same --dest you used in extract.py
 DSN  = os.environ.get("PG_DSN")  # e.g., "dbname=argo user=argo password=... host=127.0.0.1"
 
