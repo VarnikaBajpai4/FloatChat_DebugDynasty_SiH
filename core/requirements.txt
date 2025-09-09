@@ -141,3 +141,7 @@ pandas
 scipy
 matplotlib
 statsmodels
+scikit-learn
+xgboost
+joblib
+psycopg2

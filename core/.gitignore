@@ -8,6 +8,7 @@ ENV/
 # Argo_nc folder
 argo_nc/
 indexes/
+predictions/models/
 
 chroma_data/
 core/chroma_data/
