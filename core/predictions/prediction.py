@@ -5,14 +5,55 @@ from datetime import timedelta
 from sklearn.linear_model import LinearRegression
 from tabulate import tabulate  
 
-# --- Database connection details ---
-DB_CONFIG = {
-    "dbname": "Argo",
-    "user": "postgres",
-    "password": "Vasava@2024",
-    "host": "localhost",
-    "port": 5432,
-}
+# --- Database connection from environment (.env or process) ---
+import os
+from pathlib import Path
+
+try:
+    from dotenv import load_dotenv  # type: ignore
+except Exception:
+    load_dotenv = None
+
+
+def _ensure_env_loaded():
+    """Load environment variables from core/.env if not already set."""
+    if "PG_DSN" in os.environ or "PG_DBNAME" in os.environ:
+        return
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    if load_dotenv is not None:
+        load_dotenv(dotenv_path=str(env_path))
+    else:
+        if env_path.exists():
+            with env_path.open("r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if "=" in line:
+                        k, v = line.split("=", 1)
+                        if k not in os.environ:
+                            os.environ[k] = v
+
+
+def get_db_connection():
+    """Create and return a psycopg2 connection using PG_DSN or PG_* pieces."""
+    _ensure_env_loaded()
+    dsn = os.getenv("PG_DSN")
+    if dsn:
+        return psycopg2.connect(dsn)
+    cfg = {
+        "dbname": os.getenv("PG_DBNAME"),
+        "user": os.getenv("PG_USER"),
+        "password": os.getenv("PG_PASSWORD"),
+        "host": os.getenv("PG_HOST"),
+        "port": os.getenv("PG_PORT"),
+    }
+    cfg = {k: v for k, v in cfg.items() if v is not None}
+    if not cfg:
+        raise RuntimeError(
+            "Database configuration not found. Define PG_DSN in core/.env or set PG_DBNAME, PG_USER, PG_PASSWORD, PG_HOST, PG_PORT."
+        )
+    return psycopg2.connect(**cfg)
 
 # --- Variable mapping ---
 VARIABLE_MAP = {
@@ -52,7 +93,7 @@ def fetch_data(variable: str, since_days=1095):
         ORDER BY date;
     """
 
-    with psycopg2.connect(**DB_CONFIG) as conn:
+    with get_db_connection() as conn:
         df = pd.read_sql(query, conn)
 
     print(f"Fetched {len(df)} raw rows from DB")
