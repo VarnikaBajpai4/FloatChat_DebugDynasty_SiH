@@ -12,3 +12,7 @@ async def fetch_schema():
     async with mcp_client:
         schema = await mcp_client.read_resource("data://knowledge_base/sql_schema_json")
         return schema
+async def generate_time_series_plot(params):
+    async with mcp_client:
+        result = await mcp_client.call_tool("generate_time_series_tool", {"payload": params})
+        return result

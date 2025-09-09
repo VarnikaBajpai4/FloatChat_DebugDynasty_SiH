@@ -12,7 +12,7 @@ from models import QueryRequest, QueryResponse
 from constants import ORCHESTRATION_PROMPT, SQL_PROMPT, SYSTEM_PROMPT, GATEKEEPER_PROMPT
 
 import asyncio
-from mcp_calls import run_query, fetch_schema
+from mcp_calls import generate_time_series_plot, run_query, fetch_schema
 app = FastAPI()
 
 llm_client = OpenAI(
@@ -91,7 +91,8 @@ async def query_endpoint(payload: QueryRequest):
             "links": None,
             "QC": None
         }
-    
+    visualization_name = orchestration_decision["chosen_visualizations"][0]["op"]
+    print("Chosen visualization:", visualization_name)
     #now, we have the orchestration decision. we need to now form the SQL query for each of the visualizations
     #another llm call to make the sql query
     messages =[
@@ -121,7 +122,20 @@ async def query_endpoint(payload: QueryRequest):
     #the model is hallucinating af. leaving it be for now
     #continue the chain to get the final response
     #next, we need to pass it to the mcp server to generate the visualization from the result of the sql query
-
+    if visualization_name == "timeseries_line":
+        params = {"structuredContent": query_results.structured_content}
+        result = await generate_time_series_plot(params)
+        print("Time series generation result:", result)
+        #return the plot url
+        plot_url = result.structured_content["plot_url"]
+        return {
+            "text": f"Here is your time series plot: {plot_url}",
+            "links": plot_url,
+            "QC": {
+                "number": 0,
+                "variable": "N/A"
+            }
+        }
     
     return {
         "text": "Your query has been accepted and is being processed.",
