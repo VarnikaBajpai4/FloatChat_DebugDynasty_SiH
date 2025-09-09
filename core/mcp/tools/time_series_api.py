@@ -1,7 +1,7 @@
 # file: time_series_api.py
 from pydantic import BaseModel
 from typing import Optional, Literal
-from timeseries_plot import create_time_series_plot  # replace with your module path
+from .timeseries_plot import create_time_series_plot  # replace with your module path
 
 class TimeSeriesPayload(BaseModel):
     """

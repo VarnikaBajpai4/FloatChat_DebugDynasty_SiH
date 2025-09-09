@@ -42,6 +42,7 @@ async def query_endpoint(payload: QueryRequest):
         presence_penalty=0,
         stop=None
     )
+    print("Gatekeeper response:", response.choices[0].message.content)
     parsed_response = json.loads(response.choices[0].message.content)
     
     if parsed_response["label"] != "proceed":
@@ -96,10 +97,10 @@ async def query_endpoint(payload: QueryRequest):
     messages =[
         {"role": "system", "content": SYSTEM_PROMPT},
         *[{"role": msg.role, "content": msg.content} for msg in payload.history],
-        {"role": "system", "content": f"Here is the database schema: {schema_content_json}"},
         {"role": "system", "content": f"Here is visualization data: {json.dumps(orchestration_decision)}"},
         {"role": "system", "content": SQL_PROMPT},
-        {"role": "user", "content": payload.message}
+        {"role": "user", "content": payload.message},
+        {"role": "system", "content": f"Here is the database schema. THIS IS THE MOST IMPORTANT PART, DO NOT HALLUCINATE : {schema_content_json}"},
     ]
     response = llm_client.chat.completions.create(
         model=os.getenv("MODEL_NAME"),
@@ -113,13 +114,13 @@ async def query_endpoint(payload: QueryRequest):
     print("SQL generation response:", response.choices[0].message.content)
     sql_query_data = json.loads(response.choices[0].message.content)
     print("Generated SQL query:", sql_query_data)
-    queries= []
-    for item in sql_query_data["visualizations"]:
-        queries.append(item["sql"])
-    
+    query= sql_query_data["visualizations"][0]["sql"]
     #now, we have the sql queries. we need to run them on the MCP server
-    query_results = await asyncio.gather(*(run_query(query) for query in queries))
+    query_results = await run_query(query)
     print("Query results:", query_results)
+    #the model is hallucinating af. leaving it be for now
+    #continue the chain to get the final response
+    #next, we need to pass it to the mcp server to generate the visualization from the result of the sql query
 
     
     return {
@@ -127,6 +128,13 @@ async def query_endpoint(payload: QueryRequest):
         "links": None,
         "QC": None
     }
+
+from fastapi.staticfiles import StaticFiles
+
+PLOT_DIR = "plots/"
+os.makedirs(PLOT_DIR, exist_ok=True)
+
+app.mount("/plots", StaticFiles(directory=PLOT_DIR), name="plots")
 
 if __name__ == "__main__":
     import uvicorn
