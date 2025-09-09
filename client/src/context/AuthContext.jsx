@@ -114,9 +114,18 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    // No backend logout route guaranteed; clear locally
-    setUser(null);
-    persistUser(null);
+    try {
+      await fetch(`${API_BASE}/api/auth/logout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+    } catch {
+      // ignore network errors; still clear locally
+    } finally {
+      setUser(null);
+      persistUser(null);
+    }
   };
 
   useEffect(() => {
