@@ -61,6 +61,8 @@ export default function Chat() {
   const [creating, setCreating] = useState(false);
   const [messages, setMessages] = useState([]);
   const [sending, setSending] = useState(false);
+  // GeoMap: hold a confirmed polygon before first send
+  const [geoPendingCoords, setGeoPendingCoords] = useState(null);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -284,7 +286,31 @@ export default function Chat() {
     e.preventDefault();
     const text = prompt.trim();
     if (!text) return;
-    await sendProgrammaticMessage(text);
+
+    // If GeoMap polygon has been confirmed (but not sent yet), compose full message
+    let finalMessage = text;
+    if (geoPendingCoords && selectedMode === "GeoMap" && !modeLocked) {
+      const coordsStr = geoPendingCoords
+        .map(([lat, lng]) => `${lat.toFixed(4)},${lng.toFixed(4)}`)
+        .join(" | ");
+      const header = `Polygon (lat,lon) 5 points: ${coordsStr}`;
+      finalMessage = `${header}\n\n${text}`;
+    }
+
+    // Optionally persist current role selection to conversation before first send
+    try {
+      if (activeId) {
+        await fetch(`${API_BASE}/api/chat/${activeId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ role }),
+        });
+      }
+    } catch {}
+
+    await sendProgrammaticMessage(finalMessage);
+    setGeoPendingCoords(null);
     setPrompt("");
   };
 
@@ -409,7 +435,7 @@ export default function Chat() {
               icon={MessageSquare}
               label="Chat"
               active={selectedMode === "Chat"}
-              disabled={modeLocked}
+              disabled={modeLocked || (selectedMode === "GeoMap" && geoPendingCoords)}
               onClick={() => requestModeChange("Chat")}
             />
             <SidebarModeItem
@@ -417,7 +443,7 @@ export default function Chat() {
               icon={Compass}
               label="GeoMap"
               active={selectedMode === "GeoMap"}
-              disabled={modeLocked}
+              disabled={modeLocked || (selectedMode === "GeoMap" && geoPendingCoords)}
               onClick={() => requestModeChange("GeoMap")}
             />
             <SidebarModeItem
@@ -425,7 +451,7 @@ export default function Chat() {
               icon={LineChart}
               label="Prediction"
               active={selectedMode === "Prediction"}
-              disabled={modeLocked}
+              disabled={modeLocked || (selectedMode === "GeoMap" && geoPendingCoords)}
               onClick={() => requestModeChange("Prediction")}
             />
           </div>
@@ -653,7 +679,7 @@ export default function Chat() {
       <div className="flex-1 relative overflow-hidden">
         {/* Mode tabs centered at top */}
         <div className="h-14 flex items-center justify-center px-4">
-          {!modeLocked && (
+          {!modeLocked && !(selectedMode === "GeoMap" && geoPendingCoords) && (
             <ModeTabs
               selected={selectedMode}
               onSelect={requestModeChange}
@@ -668,15 +694,33 @@ export default function Chat() {
             <div className="absolute inset-0 overflow-auto px-4 py-6">
               <MessageList messages={messages} isStreaming={sending} />
             </div>
-          ) : selectedMode === "GeoMap" && !modeLocked ? (
+          ) : selectedMode === "GeoMap" && !modeLocked && !geoPendingCoords ? (
             <GeoMapPicker
-              onSend={async (coords) => {
-                const text = `Polygon (lat,lon) 5 points: ${coords
-                  .map(([lat, lng]) => `${lat.toFixed(4)},${lng.toFixed(4)}`)
-                  .join(" | ")}`;
-                await sendProgrammaticMessage(text);
+              onConfirm={(coords) => {
+                setGeoPendingCoords(coords);
               }}
             />
+          ) : selectedMode === "GeoMap" && !modeLocked && geoPendingCoords ? (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="absolute inset-0 flex flex-col items-center overflow-auto px-4 py-6"
+            >
+              <div className="w-full max-w-3xl bg-white/90 border border-[#06B6D4]/30 backdrop-blur-xl rounded-2xl p-4 shadow">
+                <div className="text-sm font-semibold text-slate-700 mb-2">Selected region (5 points)</div>
+                <ul className="text-sm text-slate-700 space-y-1">
+                  {geoPendingCoords.map(([lat, lng], i) => (
+                    <li key={i}>
+                      P{i + 1}: {lat.toFixed(4)}, {lng.toFixed(4)}
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-3 text-sm text-slate-600">
+                  Add your query below. This message will include the region plus your query.
+                </div>
+              </div>
+            </motion.div>
           ) : (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -716,7 +760,7 @@ export default function Chat() {
           )}
 
           {/* Bottom input bar with Role dropdown on the left */}
-          {!(selectedMode === "GeoMap" && showGreeting && !modeLocked) && (
+          {!(selectedMode === "GeoMap" && showGreeting && !modeLocked && !geoPendingCoords) && (
             <form onSubmit={handleSend} className="absolute left-0 right-0 bottom-4 flex justify-center px-4">
               <motion.div
                 className={cn(
@@ -733,7 +777,7 @@ export default function Chat() {
                 {/* Role dropdown placed at left side of input bar */}
                 {modeLocked ? (
                   // spacer to keep text from hugging left edge once role selector disappears
-                  <div className="w-28 sm:w-2" aria-hidden="true" />
+                  <div className="w-28 sm:w-32" aria-hidden="true" />
                 ) : (
                   <RoleDropdown role={role} setRole={setRole} />
                 )}
@@ -961,7 +1005,7 @@ function MessageList({ messages, isStreaming }) {
 }
 
 /* GeoMap polygon picker for Indian Ocean */
-function GeoMapPicker({ onSend }) {
+function GeoMapPicker({ onConfirm }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef({ markers: [], line: null, polygon: null });
@@ -1043,9 +1087,9 @@ function GeoMapPicker({ onSend }) {
 
   const reset = () => setPoints([]);
 
-  const handleSend = async () => {
+  const handleConfirm = async () => {
     if (points.length !== 5) return;
-    await onSend(points);
+    await onConfirm(points);
   };
 
   return (
@@ -1069,13 +1113,13 @@ function GeoMapPicker({ onSend }) {
         {points.length === 5 && (
           <Button
             type="button"
-            onClick={handleSend}
+            onClick={handleConfirm}
             className={cn(
               "rounded-full px-4",
               "bg-gradient-to-r from-[#06B6D4] to-[#0EA5E9] text-white"
             )}
           >
-            Send region
+            Confirm
           </Button>
         )}
       </div>
