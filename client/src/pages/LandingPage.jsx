@@ -15,161 +15,13 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { useRef, useEffect, useState, useMemo } from "react";
-
-const FloatingParticles = () => {
-  const { theme } = useTheme();
-
-  const particles = useMemo(
-    () =>
-      Array.from({ length: 80 }, (_, i) => ({
-        id: i,
-        size: Math.random() * 8 + 3,
-        x: Math.random() * 100,
-        delay: Math.random() * 2,
-        duration: Math.random() * 4 + 6,
-        opacity: Math.random() * 0.6 + 0.2,
-      })),
-    []
-  );
-
-  return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {particles.map((particle) => (
-        <motion.div
-          key={particle.id}
-          className={`absolute rounded-full backdrop-blur-sm border ${
-            theme === "light"
-              ? "bg-gradient-to-br from-[#0EA5E9]/40 to-[#22D3EE]/30 border-[#0EA5E9]/30"
-              : "bg-gradient-to-br from-[#22D3EE]/30 to-[#0EA5E9]/20 border-[#22D3EE]/20"
-          }`}
-          style={{
-            width: particle.size,
-            height: particle.size,
-            left: `${particle.x}%`,
-          }}
-          animate={{
-            y: [1200, -100],
-            x: [0, Math.sin(particle.id) * 50],
-            scale: [0.8, 1.2, 0.8],
-            opacity: [0, particle.opacity, 0],
-          }}
-          transition={{
-            duration: particle.duration,
-            delay: particle.delay,
-            repeat: Number.POSITIVE_INFINITY,
-            ease: "easeInOut",
-          }}
-        />
-      ))}
-    </div>
-  );
-};
-
-const OceanWaves = () => {
-  const { theme } = useTheme();
-
-  return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden opacity-30 z-0">
-      <motion.div
-        className="absolute inset-0"
-        style={{
-          background:
-            theme === "light"
-              ? `
-              radial-gradient(circle at 20% 80%, rgba(14, 165, 233, 0.25) 0%, transparent 50%),
-              radial-gradient(circle at 80% 20%, rgba(34, 211, 238, 0.25) 0%, transparent 50%),
-              radial-gradient(circle at 40% 40%, rgba(6, 182, 212, 0.2) 0%, transparent 50%)
-            `
-              : `
-              radial-gradient(circle at 20% 80%, rgba(34, 211, 238, 0.15) 0%, transparent 50%),
-              radial-gradient(circle at 80% 20%, rgba(14, 165, 233, 0.15) 0%, transparent 50%),
-              radial-gradient(circle at 40% 40%, rgba(6, 182, 212, 0.1) 0%, transparent 50%)
-            `,
-        }}
-        animate={{
-          background:
-            theme === "light"
-              ? [
-                  `radial-gradient(circle at 20% 80%, rgba(14, 165, 233, 0.25) 0%, transparent 50%),
-               radial-gradient(circle at 80% 20%, rgba(34, 211, 238, 0.25) 0%, transparent 50%),
-               radial-gradient(circle at 40% 40%, rgba(6, 182, 212, 0.2) 0%, transparent 50%)`,
-                  `radial-gradient(circle at 80% 20%, rgba(14, 165, 233, 0.25) 0%, transparent 50%),
-               radial-gradient(circle at 20% 80%, rgba(34, 211, 238, 0.25) 0%, transparent 50%),
-               radial-gradient(circle at 60% 60%, rgba(6, 182, 212, 0.2) 0%, transparent 50%)`,
-                  `radial-gradient(circle at 40% 60%, rgba(14, 165, 233, 0.25) 0%, transparent 50%),
-               radial-gradient(circle at 60% 40%, rgba(34, 211, 238, 0.25) 0%, transparent 50%),
-               radial-gradient(circle at 20% 20%, rgba(6, 182, 212, 0.2) 0%, transparent 50%)`,
-                ]
-              : [
-                  `radial-gradient(circle at 20% 80%, rgba(34, 211, 238, 0.15) 0%, transparent 50%),
-               radial-gradient(circle at 80% 20%, rgba(14, 165, 233, 0.15) 0%, transparent 50%),
-               radial-gradient(circle at 40% 40%, rgba(6, 182, 212, 0.1) 0%, transparent 50%)`,
-                  `radial-gradient(circle at 80% 20%, rgba(34, 211, 238, 0.15) 0%, transparent 50%),
-               radial-gradient(circle at 20% 80%, rgba(14, 165, 233, 0.15) 0%, transparent 50%),
-               radial-gradient(circle at 60% 60%, rgba(6, 182, 212, 0.1) 0%, transparent 50%)`,
-                  `radial-gradient(circle at 40% 60%, rgba(34, 211, 238, 0.15) 0%, transparent 50%),
-               radial-gradient(circle at 60% 40%, rgba(14, 165, 233, 0.15) 0%, transparent 50%),
-               radial-gradient(circle at 20% 20%, rgba(6, 182, 212, 0.1) 0%, transparent 50%)`,
-                ],
-        }}
-        transition={{
-          duration: 20,
-          repeat: Number.POSITIVE_INFINITY,
-          ease: "easeInOut",
-        }}
-      />
-    </div>
-  );
-};
-
-const FloatingJellyfish = () => {
-  const { theme } = useTheme();
-
-  const jellyfish = useMemo(
-    () =>
-      Array.from({ length: 12 }, (_, i) => ({
-        id: i,
-        size: Math.random() * 40 + 20,
-        x: Math.random() * 100,
-        delay: Math.random() * 3,
-        duration: Math.random() * 6 + 8,
-      })),
-    []
-  );
-
-  return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {jellyfish.map((jelly) => (
-        <motion.div
-          key={jelly.id}
-          className={`absolute rounded-full backdrop-blur-md border ${
-            theme === "light"
-              ? "bg-gradient-to-br from-[#22D3EE]/30 to-[#0EA5E9]/20 border-[#0EA5E9]/40"
-              : "bg-gradient-to-br from-[#0EA5E9]/20 to-[#22D3EE]/10 border-[#22D3EE]/30"
-          }`}
-          style={{
-            width: jelly.size,
-            height: jelly.size,
-            left: `${jelly.x}%`,
-          }}
-          animate={{
-            y: [1100, -50],
-            x: [0, Math.sin(jelly.id * 0.3) * 80],
-            scale: [0.5, 1, 0.5],
-            opacity: [0, 0.4, 0],
-            rotate: [0, 360],
-          }}
-          transition={{
-            duration: jelly.duration,
-            delay: jelly.delay,
-            repeat: Number.POSITIVE_INFINITY,
-            ease: "easeInOut",
-          }}
-        />
-      ))}
-    </div>
-  );
-};
+import Marquee from "@/components/Marquee";
+import FloatingJellyfish from "@/components/FloatingJellyfish";
+import OceanWaves from "@/components/OceanWaves";
+import FloatingParticles from "@/components/FloatingParticles";
+import Footer from "@/components/Footer";
+import FeatureRow from "@/components/FeatureRow";
+import AudienceChips from "@/components/CardyChips";
 
 // Animated counter component
 const AnimatedCounter = (value, suffix = "") => {
@@ -198,23 +50,6 @@ const AnimatedCounter = (value, suffix = "") => {
     </span>
   );
 };
-
-// Marquee component
-const Marquee = ({ children }) => (
-  <div className="overflow-hidden whitespace-nowrap">
-    <motion.div
-      className="inline-block"
-      animate={{ x: [1000, -1000] }}
-      transition={{
-        duration: 20,
-        repeat: Number.POSITIVE_INFINITY,
-        ease: "linear",
-      }}
-    >
-      {children}
-    </motion.div>
-  </div>
-);
 
 export default function LandingPage() {
   const { scrollYProgress } = useScroll();
@@ -246,24 +81,24 @@ export default function LandingPage() {
     <div
       className={`min-h-screen relative overflow-hidden ${
         theme === "light"
-          ? "bg-gradient-to-br from-[#E0F2FE] via-[#BAE6FD] to-[#7DD3FC]"
-          : "bg-gradient-to-br from-[#0B1220] via-[#1E293B] to-[#0284C7]"
+          ? "bg-gradient-to-br from-[#F0F9FF] via-[#E0F2FE] to-[#BAE6FD]"
+          : "bg-gradient-to-br from-[#020617] via-[#0F172A] to-[#1E293B]"
       }`}
     >
       <FloatingParticles />
       <OceanWaves />
       <FloatingJellyfish />
 
-      {/* Animated background */}
+      {/* Enhanced animated background */}
       <motion.div
-        className="absolute inset-0 opacity-30"
+        className="absolute inset-0 opacity-40"
         style={{ y: backgroundY }}
       >
         <div
           className={`absolute inset-0 ${
             theme === "light"
-              ? "bg-gradient-to-r from-[#0EA5E9]/30 via-[#22D3EE]/20 to-[#0284C7]/30"
-              : "bg-gradient-to-r from-[#0EA5E9]/20 via-[#22D3EE]/10 to-[#0284C7]/20"
+              ? "bg-gradient-to-r from-[#06B6D4]/30 via-[#0EA5E9]/25 to-[#3B82F6]/30"
+              : "bg-gradient-to-r from-[#06B6D4]/25 via-[#0EA5E9]/15 to-[#3B82F6]/25"
           }`}
         />
         <svg className="absolute inset-0 w-full h-full" viewBox="0 0 1000 1000">
@@ -278,14 +113,21 @@ export default function LandingPage() {
             >
               <path
                 d="M0,50 Q25,25 50,50 T100,50"
-                stroke="#22D3EE"
+                stroke="#06B6D4"
+                strokeWidth="0.8"
+                fill="none"
+                opacity={theme === "light" ? "0.6" : "0.4"}
+              />
+              <path
+                d="M0,75 Q25,50 50,75 T100,75"
+                stroke="#0EA5E9"
                 strokeWidth="0.5"
                 fill="none"
                 opacity={theme === "light" ? "0.5" : "0.3"}
               />
               <path
-                d="M0,75 Q25,50 50,75 T100,75"
-                stroke="#0EA5E9"
+                d="M0,25 Q25,0 50,25 T100,25"
+                stroke="#3B82F6"
                 strokeWidth="0.3"
                 fill="none"
                 opacity={theme === "light" ? "0.4" : "0.2"}
@@ -299,16 +141,16 @@ export default function LandingPage() {
       <div
         className={`fixed inset-0 -z-10 ${
           theme === "light"
-            ? "bg-gradient-to-br from-[#E0F2FE] via-[#BAE6FD] to-[#7DD3FC]"
-            : "bg-gradient-to-br from-[#0B1220] via-[#1E293B] to-[#0284C7]"
+            ? "bg-gradient-to-br from-[#F0F9FF] via-[#E0F2FE] to-[#BAE6FD]"
+            : "bg-gradient-to-br from-[#020617] via-[#0F172A] to-[#1E293B]"
         }`}
       />
 
       <motion.header
-        className={`fixed top-0 w-full z-50 backdrop-blur-md border-b ${
+        className={`fixed top-0 w-full z-50 backdrop-blur-xl border-b ${
           theme === "light"
-            ? "bg-[#E0F2FE]/90 border-[#0EA5E9]/30"
-            : "bg-[#0B1220]/90 border-white/20"
+            ? "bg-[#F0F9FF]/85 border-[#06B6D4]/40"
+            : "bg-[#020617]/85 border-[#06B6D4]/30"
         }`}
         initial={{ y: -100 }}
         animate={{ y: 0 }}
@@ -316,8 +158,10 @@ export default function LandingPage() {
       >
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <motion.div
-            className={`text-2xl font-bold tracking-tight ${
-              theme === "light" ? "text-[#0B1220]" : "text-white"
+            className={`text-2xl font-bold tracking-tight bg-gradient-to-r ${
+              theme === "light"
+                ? "from-[#0F172A] to-[#1E293B] text-transparent bg-clip-text"
+                : "from-[#06B6D4] to-[#3B82F6] text-transparent bg-clip-text"
             }`}
             whileHover={{ scale: 1.05 }}
           >
@@ -329,8 +173,8 @@ export default function LandingPage() {
               variant="ghost"
               className={`${
                 theme === "light"
-                  ? "text-[#0B1220] hover:bg-[#0EA5E9]/20 hover:text-[#0B1220] border-[#0EA5E9]/30"
-                  : "text-white hover:bg-white/20 hover:text-white border-white/20"
+                  ? "text-[#0F172A] hover:bg-[#06B6D4]/15 hover:text-[#0F172A] border-[#06B6D4]/40"
+                  : "text-[#E2E8F0] hover:bg-[#06B6D4]/20 hover:text-white border-[#06B6D4]/40"
               }`}
             >
               Sign Up
@@ -339,8 +183,8 @@ export default function LandingPage() {
               variant="ghost"
               className={`${
                 theme === "light"
-                  ? "text-[#0B1220] hover:bg-[#0EA5E9]/20 hover:text-[#0B1220] border-[#0EA5E9]/30"
-                  : "text-white hover:bg-white/20 hover:text-white border-white/20"
+                  ? "text-[#0F172A] hover:bg-[#06B6D4]/15 hover:text-[#0F172A] border-[#06B6D4]/40"
+                  : "text-[#E2E8F0] hover:bg-[#06B6D4]/20 hover:text-white border-[#06B6D4]/40"
               }`}
             >
               Log In
@@ -350,21 +194,21 @@ export default function LandingPage() {
       </motion.header>
 
       <div className="relative z-10">
-        {/* Hero Section */}
+        {/* Enhanced Hero Section */}
         <section
           ref={heroRef}
           className="pt-32 pb-20 px-6 text-center relative"
         >
           <div className="container mx-auto max-w-4xl">
             <motion.h1
-              className={`text-6xl md:text-7xl font-bold mb-6 tracking-tight drop-shadow-lg ${
-                theme === "light" ? "text-[#0B1220]" : "text-white"
+              className={`text-6xl md:text-7xl font-bold mb-6 tracking-tight ${
+                theme === "light" ? "text-[#0F172A]" : "text-[#F1F5F9]"
               }`}
               style={{
                 textShadow:
                   theme === "light"
-                    ? "0 4px 8px rgba(11,18,32,0.3)"
-                    : "0 4px 8px rgba(0,0,0,0.8)",
+                    ? "0 4px 20px rgba(15,23,42,0.15)"
+                    : "0 4px 20px rgba(6,182,212,0.3)",
               }}
               initial={{ y: 50, opacity: 0 }}
               animate={heroInView ? { y: 0, opacity: 1 } : {}}
@@ -372,12 +216,12 @@ export default function LandingPage() {
             >
               Explore the oceans.{" "}
               <span
-                className="text-[#22D3EE] drop-shadow-lg"
+                className="bg-gradient-to-r from-[#06B6D4] via-[#0EA5E9] to-[#3B82F6] text-transparent bg-clip-text"
                 style={{
-                  textShadow:
-                    theme === "light"
-                      ? "0 4px 8px rgba(11,18,32,0.3)"
-                      : "0 4px 8px rgba(0,0,0,0.8)",
+                  filter:
+                    theme === "dark"
+                      ? "drop-shadow(0 0 10px rgba(6,182,212,0.5))"
+                      : "none",
                 }}
               >
                 Just ask.
@@ -385,14 +229,14 @@ export default function LandingPage() {
             </motion.h1>
 
             <motion.p
-              className={`text-xl mb-8 max-w-2xl mx-auto drop-shadow-md ${
-                theme === "light" ? "text-[#0B1220]/80" : "text-white/90"
+              className={`text-xl mb-8 max-w-2xl mx-auto ${
+                theme === "light" ? "text-[#475569]" : "text-[#CBD5E1]"
               }`}
               style={{
                 textShadow:
                   theme === "light"
-                    ? "0 2px 4px rgba(11,18,32,0.2)"
-                    : "0 2px 4px rgba(0,0,0,0.8)",
+                    ? "0 2px 10px rgba(71,85,105,0.1)"
+                    : "0 2px 10px rgba(0,0,0,0.5)",
               }}
               initial={{ y: 30, opacity: 0 }}
               animate={heroInView ? { y: 0, opacity: 1 } : {}}
@@ -408,27 +252,33 @@ export default function LandingPage() {
               transition={{ duration: 0.8, delay: 0.6 }}
             >
               <motion.div
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
               >
                 <Button
                   size="lg"
-                  className="bg-[#0EA5E9] hover:bg-[#0284C7] text-white px-8 py-3 shadow-lg"
+                  className="bg-gradient-to-r from-[#06B6D4] to-[#0EA5E9] hover:from-[#0891B2] hover:to-[#0284C7] text-white px-8 py-3 shadow-xl hover:shadow-2xl transition-all duration-300"
+                  style={{
+                    boxShadow:
+                      theme === "dark"
+                        ? "0 10px 40px rgba(6,182,212,0.3)"
+                        : "0 10px 40px rgba(6,182,212,0.2)",
+                  }}
                 >
                   Sign Up
                 </Button>
               </motion.div>
               <motion.div
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
               >
                 <Button
                   size="lg"
                   variant="outline"
-                  className={`px-8 py-3 shadow-lg ${
+                  className={`px-8 py-3 shadow-xl hover:shadow-2xl transition-all duration-300 ${
                     theme === "light"
-                      ? "border-[#0EA5E9]/50 text-[#0B1220] hover:bg-[#0EA5E9]/20 bg-[#E0F2FE]/50 backdrop-blur-sm"
-                      : "border-white/50 text-white hover:bg-white/20 bg-[#0B1220]/50 backdrop-blur-sm"
+                      ? "border-[#06B6D4]/60 text-[#0F172A] hover:bg-[#06B6D4]/10 bg-white/60 backdrop-blur-xl"
+                      : "border-[#06B6D4]/60 text-[#E2E8F0] hover:bg-[#06B6D4]/10 bg-[#0F172A]/60 backdrop-blur-xl"
                   }`}
                 >
                   Log In
@@ -437,10 +287,10 @@ export default function LandingPage() {
             </motion.div>
 
             <motion.div
-              className={`text-sm rounded-full px-6 py-2 inline-block border ${
+              className={`text-sm rounded-full px-6 py-3 inline-block border backdrop-blur-xl ${
                 theme === "light"
-                  ? "text-[#0B1220]/80 bg-[#E0F2FE]/60 backdrop-blur-sm border-[#0EA5E9]/30"
-                  : "text-white/80 bg-[#0B1220]/60 backdrop-blur-sm border-white/20"
+                  ? "text-[#475569] bg-white/50 border-[#06B6D4]/40"
+                  : "text-[#CBD5E1] bg-[#0F172A]/50 border-[#06B6D4]/40"
               }`}
               initial={{ opacity: 0 }}
               animate={heroInView ? { opacity: 1 } : {}}
@@ -454,18 +304,18 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* What It Does */}
+        {/* Enhanced What It Does */}
         <section className="py-20 px-6">
           <div className="container mx-auto max-w-6xl">
             <motion.h2
-              className={`text-4xl font-bold text-center mb-16 drop-shadow-lg ${
-                theme === "light" ? "text-[#0B1220]" : "text-white"
+              className={`text-4xl font-bold text-center mb-16 ${
+                theme === "light" ? "text-[#0F172A]" : "text-[#F1F5F9]"
               }`}
               style={{
                 textShadow:
                   theme === "light"
-                    ? "0 4px 8px rgba(11,18,32,0.3)"
-                    : "0 4px 8px rgba(0,0,0,0.8)",
+                    ? "0 4px 15px rgba(15,23,42,0.1)"
+                    : "0 4px 15px rgba(6,182,212,0.2)",
               }}
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
@@ -497,33 +347,38 @@ export default function LandingPage() {
                   initial={{ y: 50, opacity: 0 }}
                   whileInView={{ y: 0, opacity: 1 }}
                   transition={{ duration: 0.6, delay: i * 0.1 }}
-                  whileHover={{ scale: 1.05, y: -5 }}
+                  whileHover={{ scale: 1.05, y: -8 }}
                 >
                   <Card
-                    className={`p-8 text-center transition-all duration-300 hover:shadow-2xl hover:shadow-[#22D3EE]/20 ${
+                    className={`p-8 text-center transition-all duration-500 hover:shadow-2xl group ${
                       theme === "light"
-                        ? "bg-[#E0F2FE]/80 backdrop-blur-md border-[#0EA5E9]/40 hover:bg-[#E0F2FE]/90"
-                        : "bg-[#0B1220]/80 backdrop-blur-md border-white/30 hover:bg-[#0B1220]/90"
+                        ? "bg-white/70 backdrop-blur-xl border-[#06B6D4]/30 hover:bg-white/80 hover:border-[#06B6D4]/50"
+                        : "bg-[#0F172A]/70 backdrop-blur-xl border-[#06B6D4]/30 hover:bg-[#0F172A]/80 hover:border-[#06B6D4]/50"
                     }`}
+                    style={{
+                      boxShadow:
+                        theme === "dark"
+                          ? "0 0 30px rgba(6,182,212,0.1)"
+                          : "0 10px 40px rgba(6,182,212,0.1)",
+                    }}
                   >
                     <motion.div
-                      whileHover={{ rotate: 6 }}
+                      whileHover={{ rotate: 12, scale: 1.1 }}
                       transition={{ duration: 0.3 }}
+                      className="mb-4"
                     >
-                      <item.icon className="w-12 h-12 text-[#22D3EE] mx-auto mb-4" />
+                      <item.icon className="w-12 h-12 text-[#06B6D4] mx-auto group-hover:text-[#0EA5E9] transition-colors duration-300" />
                     </motion.div>
                     <h3
                       className={`text-xl font-semibold mb-2 ${
-                        theme === "light" ? "text-[#0B1220]" : "text-white"
+                        theme === "light" ? "text-[#0F172A]" : "text-[#F1F5F9]"
                       }`}
                     >
                       {item.title}
                     </h3>
                     <p
                       className={
-                        theme === "light"
-                          ? "text-[#0B1220]/70"
-                          : "text-white/80"
+                        theme === "light" ? "text-[#475569]" : "text-[#CBD5E1]"
                       }
                     >
                       {item.desc}
@@ -535,18 +390,18 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Key Features */}
+        {/* Enhanced Key Features */}
         <section ref={featuresRef} className="py-20 px-6">
           <div className="container mx-auto max-w-6xl">
             <motion.h2
-              className={`text-4xl font-bold text-center mb-16 drop-shadow-lg ${
-                theme === "light" ? "text-[#0B1220]" : "text-white"
+              className={`text-4xl font-bold text-center mb-16 ${
+                theme === "light" ? "text-[#0F172A]" : "text-[#F1F5F9]"
               }`}
               style={{
                 textShadow:
                   theme === "light"
-                    ? "0 2px 4px rgba(11,18,32,0.2)"
-                    : "0 2px 4px rgba(0,0,0,0.5)",
+                    ? "0 2px 10px rgba(15,23,42,0.1)"
+                    : "0 2px 10px rgba(6,182,212,0.2)",
               }}
               initial={{ opacity: 0 }}
               animate={featuresInView ? { opacity: 1 } : {}}
@@ -589,20 +444,22 @@ export default function LandingPage() {
                   initial={{ scale: 0, opacity: 0 }}
                   animate={featuresInView ? { scale: 1, opacity: 1 } : {}}
                   transition={{ duration: 0.5, delay: i * 0.1 }}
-                  whileHover={{ scale: 1.05 }}
+                  whileHover={{ scale: 1.05, y: -5 }}
                 >
                   <Card
-                    className={`p-6 transition-all duration-300 ${
+                    className={`p-6 transition-all duration-300 group ${
                       theme === "light"
-                        ? "bg-transparent border-[#0EA5E9]/40 hover:bg-[#E0F2FE]/20"
-                        : "bg-transparent border-white/30 hover:bg-white/5"
+                        ? "bg-transparent border-[#06B6D4]/30 hover:bg-white/30 hover:border-[#06B6D4]/50"
+                        : "bg-transparent border-[#06B6D4]/30 hover:bg-[#0F172A]/30 hover:border-[#06B6D4]/50"
                     }`}
                   >
                     <div className="flex items-center gap-3 mb-2">
-                      <feature.icon className="w-6 h-6 text-[#22D3EE]" />
+                      <feature.icon className="w-6 h-6 text-[#06B6D4] group-hover:text-[#0EA5E9] transition-colors duration-300" />
                       <h3
                         className={`font-semibold ${
-                          theme === "light" ? "text-[#0B1220]" : "text-white"
+                          theme === "light"
+                            ? "text-[#0F172A]"
+                            : "text-[#F1F5F9]"
                         }`}
                       >
                         {feature.title}
@@ -610,9 +467,7 @@ export default function LandingPage() {
                     </div>
                     <p
                       className={`text-sm ${
-                        theme === "light"
-                          ? "text-[#0B1220]/70"
-                          : "text-white/80"
+                        theme === "light" ? "text-[#475569]" : "text-[#CBD5E1]"
                       }`}
                     >
                       {feature.desc}
@@ -624,8 +479,8 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Showcase */}
-        <section ref={showcaseRef} className="py-20 px-6">
+        {/* Enhanced Showcase */}
+        {/* <section ref={showcaseRef} className="py-20 px-6">
           <div className="container mx-auto max-w-6xl">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <motion.div
@@ -634,41 +489,42 @@ export default function LandingPage() {
                 transition={{ duration: 0.8 }}
               >
                 <Card
-                  className={`p-8 relative overflow-hidden ${
+                  className={`p-8 relative overflow-hidden group ${
                     theme === "light"
-                      ? "bg-[#E0F2FE]/80 backdrop-blur-md border-[#0EA5E9]/40"
-                      : "bg-[#0B1220]/80 backdrop-blur-md border-white/30"
+                      ? "bg-white/70 backdrop-blur-xl border-[#06B6D4]/40"
+                      : "bg-[#0F172A]/70 backdrop-blur-xl border-[#06B6D4]/40"
                   }`}
+                  style={{
+                    boxShadow:
+                      theme === "dark"
+                        ? "0 0 40px rgba(6,182,212,0.2)"
+                        : "0 20px 60px rgba(6,182,212,0.15)",
+                  }}
                 >
                   <div
-                    className={`absolute inset-0 ${
+                    className={`absolute inset-0 opacity-50 ${
                       theme === "light"
-                        ? "bg-gradient-to-br from-[#22D3EE]/30 to-[#0EA5E9]/20"
-                        : "bg-gradient-to-br from-[#0EA5E9]/20 to-[#22D3EE]/10"
+                        ? "bg-gradient-to-br from-[#06B6D4]/20 to-[#3B82F6]/10"
+                        : "bg-gradient-to-br from-[#06B6D4]/15 to-[#3B82F6]/5"
                     }`}
                   />
                   <div className="relative">
-                    <div
-                      className={`w-full h-48 rounded-lg mb-4 flex items-center justify-center ${
+                    <motion.div
+                      className={`w-full h-48 rounded-xl mb-4 flex items-center justify-center group-hover:scale-105 transition-transform duration-500 ${
                         theme === "light"
-                          ? "bg-[#22D3EE]/40"
-                          : "bg-[#0284C7]/30"
+                          ? "bg-gradient-to-br from-[#06B6D4]/30 to-[#0EA5E9]/20"
+                          : "bg-gradient-to-br from-[#06B6D4]/20 to-[#0EA5E9]/10"
                       }`}
+                      whileHover={{ rotateY: 5 }}
                     >
-                      <Map className="w-16 h-16 text-[#22D3EE]" />
-                    </div>
+                      <Map className="w-16 h-16 text-[#06B6D4]" />
+                    </motion.div>
                     <div
-                      className={`backdrop-blur-sm rounded-full px-3 py-1 text-xs inline-block border ${
+                      className={`backdrop-blur-xl rounded-full px-3 py-1 text-xs inline-block border ${
                         theme === "light"
-                          ? "bg-[#E0F2FE]/80 text-[#0B1220] border-[#0EA5E9]/30"
-                          : "bg-[#0B1220]/80 text-white border-white/20"
+                          ? "bg-white/80 text-[#0F172A] border-[#06B6D4]/40"
+                          : "bg-[#0F172A]/80 text-[#E2E8F0] border-[#06B6D4]/40"
                       }`}
-                      style={{
-                        textShadow:
-                          theme === "light"
-                            ? "0 1px 2px rgba(11,18,32,0.3)"
-                            : "0 1px 2px rgba(0,0,0,0.8)",
-                      }}
                     >
                       Nearest floats to 15°N, 73°E
                     </div>
@@ -682,46 +538,49 @@ export default function LandingPage() {
                 transition={{ duration: 0.8, delay: 0.2 }}
               >
                 <Card
-                  className={`p-8 relative overflow-hidden ${
+                  className={`p-8 relative overflow-hidden group ${
                     theme === "light"
-                      ? "bg-[#E0F2FE]/80 backdrop-blur-md border-[#0EA5E9]/40"
-                      : "bg-[#0B1220]/80 backdrop-blur-md border-white/30"
+                      ? "bg-white/70 backdrop-blur-xl border-[#06B6D4]/40"
+                      : "bg-[#0F172A]/70 backdrop-blur-xl border-[#06B6D4]/40"
                   }`}
+                  style={{
+                    boxShadow:
+                      theme === "dark"
+                        ? "0 0 40px rgba(6,182,212,0.2)"
+                        : "0 20px 60px rgba(6,182,212,0.15)",
+                  }}
                 >
                   <div
-                    className={`absolute inset-0 ${
+                    className={`absolute inset-0 opacity-50 ${
                       theme === "light"
-                        ? "bg-gradient-to-br from-[#0EA5E9]/30 to-[#22D3EE]/20"
-                        : "bg-gradient-to-br from-[#22D3EE]/20 to-[#0EA5E9]/10"
+                        ? "bg-gradient-to-br from-[#3B82F6]/20 to-[#06B6D4]/10"
+                        : "bg-gradient-to-br from-[#3B82F6]/15 to-[#06B6D4]/5"
                     }`}
                   />
                   <div className="relative">
-                    <div
-                      className={`w-full h-48 rounded-lg mb-4 flex items-center justify-center ${
-                        theme === "light" ? "bg-[#0EA5E9]/40" : "bg-[#0EA5E9]/30"
-                      }`}
-                    >
-                      <TrendingUp className="w-16 h-16 text-[#22D3EE]" />
-                    </div>
-                    <div
-                      className={`backdrop-blur-sm rounded-full px-3 py-1 text-xs inline-block border ${
+                    <motion.div
+                      className={`w-full h-48 rounded-xl mb-4 flex items-center justify-center group-hover:scale-105 transition-transform duration-500 ${
                         theme === "light"
-                          ? "bg-[#E0F2FE]/80 text-[#0B1220] border-[#0EA5E9]/30"
-                          : "bg-[#0B1220]/80 text-white border-white/20"
+                          ? "bg-gradient-to-br from-[#3B82F6]/30 to-[#06B6D4]/20"
+                          : "bg-gradient-to-br from-[#3B82F6]/20 to-[#06B6D4]/10"
                       }`}
-                      style={{
-                        textShadow:
-                          theme === "light"
-                            ? "0 1px 2px rgba(11,18,32,0.3)"
-                            : "0 1px 2px rgba(0,0,0,0.8)",
-                      }}
+                      whileHover={{ rotateY: -5 }}
+                    >
+                      <TrendingUp className="w-16 h-16 text-[#3B82F6]" />
+                    </motion.div>
+                    <div
+                      className={`backdrop-blur-xl rounded-full px-3 py-1 text-xs inline-block border ${
+                        theme === "light"
+                          ? "bg-white/80 text-[#0F172A] border-[#06B6D4]/40"
+                          : "bg-[#0F172A]/80 text-[#E2E8F0] border-[#06B6D4]/40"
+                      }`}
                     >
                       DMQC preferred
                     </div>
                   </div>
                 </Card>
               </motion.div>
-            </div>
+            </div> 
 
             <motion.div
               className="flex flex-wrap justify-center gap-4 mt-12"
@@ -730,39 +589,39 @@ export default function LandingPage() {
               transition={{ duration: 0.8, delay: 0.4 }}
             >
               <div
-                className={`backdrop-blur-sm rounded-full px-4 py-2 text-sm border ${
+                className={`backdrop-blur-xl rounded-full px-4 py-2 text-sm border ${
                   theme === "light"
-                    ? "bg-[#E0F2FE]/70 text-[#0B1220] border-[#0EA5E9]/30"
-                    : "bg-[#0B1220]/70 text-white border-white/20"
+                    ? "bg-white/60 text-[#0F172A] border-[#06B6D4]/40"
+                    : "bg-[#0F172A]/60 text-[#E2E8F0] border-[#06B6D4]/40"
                 }`}
               >
                 Days → minutes: from NetCDF to answers
               </div>
               <div
-                className={`backdrop-blur-sm rounded-full px-4 py-2 text-sm border ${
+                className={`backdrop-blur-xl rounded-full px-4 py-2 text-sm border ${
                   theme === "light"
-                    ? "bg-[#E0F2FE]/70 text-[#0B1220] border-[#0EA5E9]/30"
-                    : "bg-[#0B1220]/70 text-white border-white/20"
+                    ? "bg-white/60 text-[#0F172A] border-[#06B6D4]/40"
+                    : "bg-[#0F172A]/60 text-[#E2E8F0] border-[#06B6D4]/40"
                 }`}
               >
                 Indian Ocean first, global ready
               </div>
             </motion.div>
           </div>
-        </section>
+        </section> */}
 
-        {/* Who It's For */}
+        {/* Enhanced Who It's For */}
         <section className="py-20 px-6">
           <div className="container mx-auto max-w-6xl text-center">
             <motion.h2
-              className={`text-4xl font-bold mb-16 drop-shadow-lg ${
-                theme === "light" ? "text-[#0B1220]" : "text-white"
+              className={`text-4xl font-bold mb-16 ${
+                theme === "light" ? "text-[#0F172A]" : "text-[#F1F5F9]"
               }`}
               style={{
                 textShadow:
                   theme === "light"
-                    ? "0 2px 4px rgba(11,18,32,0.2)"
-                    : "0 2px 4px rgba(0,0,0,0.5)",
+                    ? "0 2px 10px rgba(15,23,42,0.1)"
+                    : "0 2px 10px rgba(6,182,212,0.2)",
               }}
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
@@ -771,103 +630,26 @@ export default function LandingPage() {
               Who It's For
             </motion.h2>
 
-            <div className="flex flex-wrap justify-center gap-4">
-              {[
-                {
-                  title: "Researchers",
-                  example: "Profiles within 200 km of Mumbai",
-                },
-                {
-                  title: "Policymakers",
-                  example: "Climate trends in territorial waters",
-                },
-                {
-                  title: "Fisheries & Industry",
-                  example: "Temperature zones for fishing",
-                },
-                {
-                  title: "Educators & Students",
-                  example: "Ocean data for coursework",
-                },
-              ].map((item, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ scale: 0 }}
-                  whileInView={{ scale: 1 }}
-                  transition={{ duration: 0.5, delay: i * 0.1 }}
-                  whileHover={{ scale: 1.05 }}
-                  className="group"
-                >
-                  <div
-                    className={`backdrop-blur-sm rounded-full px-6 py-3 transition-all duration-300 cursor-pointer relative border ${
-                      theme === "light"
-                        ? "bg-transparent text-[#0B1220] hover:bg-[#0EA5E9]/20 border-[#0EA5E9]/30"
-                        : "bg-transparent text-white hover:bg-white/10 border-white/20"
-                    }`}
-                  >
-                    {item.title}
-                    <div
-                      className={`absolute top-full left-1/2 transform -translate-x-1/2 mt-2 text-xs rounded-lg px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap z-10 border ${
-                        theme === "light"
-                          ? "bg-[#0EA5E9] text-white border-[#0EA5E9]/30"
-                          : "bg-[#0284C7] text-white border-white/20"
-                      }`}
-                    >
-                      {item.example}
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+            <AudienceChips />
           </div>
         </section>
 
-        {/* Trust Strip */}
+        {/* Enhanced Trust Strip */}
         <section className="py-16 px-6">
           <div className="container mx-auto max-w-6xl">
-            <div className="flex flex-wrap justify-center gap-8 mb-8">
-              {[
-                { icon: CheckCircle, title: "QC-Aware" },
-                { icon: Shield, title: "Read-Only SQL" },
-                { icon: Database, title: "Transparent Queries" },
-                { icon: Target, title: "Open Standards" },
-              ].map((item, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ y: 20, opacity: 0 }}
-                  whileInView={{ y: 0, opacity: 1 }}
-                  transition={{ duration: 0.5, delay: i * 0.1 }}
-                  className={`flex items-center gap-2 ${
-                    theme === "light" ? "text-[#0B1220]" : "text-white"
-                  }`}
-                >
-                  <item.icon className="w-5 h-5 text-[#22D3EE]" />
-                  <span
-                    className="text-sm font-medium drop-shadow-sm"
-                    style={{
-                      textShadow:
-                        theme === "light"
-                          ? "0 1px 2px rgba(11,18,32,0.2)"
-                          : "0 1px 2px rgba(0,0,0,0.5)",
-                    }}
-                  >
-                    {item.title}
-                  </span>
-                </motion.div>
-              ))}
-            </div>
+            <FeatureRow />
 
             <div
-              className={`backdrop-blur-sm rounded-lg p-4 overflow-hidden border ${
+              className={`backdrop-blur-xl rounded-xl p-4 overflow-hidden border ${
                 theme === "light"
-                  ? "bg-transparent border-[#0EA5E9]/30"
-                  : "bg-transparent border-white/20"
+                  ? "bg-white/30 border-[#06B6D4]/40"
+                  : "bg-[#0F172A]/30 border-[#06B6D4]/40"
               }`}
             >
               <Marquee>
                 <span
                   className={`text-sm ${
-                    theme === "light" ? "text-[#0B1220]/70" : "text-white/80"
+                    theme === "light" ? "text-[#475569]" : "text-[#CBD5E1]"
                   }`}
                 >
                   "Salinity near the equator, Mar 2023" • "Compare BGC in
@@ -879,18 +661,18 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Final CTA */}
+        {/* Enhanced Final CTA */}
         <section className="py-20 px-6 text-center">
           <div className="container mx-auto max-w-4xl">
             <motion.h2
-              className={`text-5xl font-bold mb-8 drop-shadow-lg ${
-                theme === "light" ? "text-[#0B1220]" : "text-white"
+              className={`text-5xl font-bold mb-8 ${
+                theme === "light" ? "text-[#0F172A]" : "text-[#F1F5F9]"
               }`}
               style={{
                 textShadow:
                   theme === "light"
-                    ? "0 2px 4px rgba(11,18,32,0.2)"
-                    : "0 2px 4px rgba(0,0,0,0.5)",
+                    ? "0 4px 20px rgba(15,23,42,0.1)"
+                    : "0 4px 20px rgba(6,182,212,0.3)",
               }}
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
@@ -906,35 +688,35 @@ export default function LandingPage() {
               transition={{ duration: 0.8, delay: 0.2 }}
             >
               <motion.div
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ scale: 1.05, y: -3 }}
                 whileTap={{ scale: 0.95 }}
                 animate={{
                   boxShadow: [
-                    "0 0 0 0 rgba(34, 211, 238, 0)",
-                    "0 0 0 10px rgba(34, 211, 238, 0.1)",
-                    "0 0 0 0 rgba(34, 211, 238, 0)",
+                    "0 0 0 0 rgba(6, 182, 212, 0)",
+                    "0 0 0 15px rgba(6, 182, 212, 0.1)",
+                    "0 0 0 0 rgba(6, 182, 212, 0)",
                   ],
                 }}
-                transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
+                transition={{ duration: 3, repeat: Number.POSITIVE_INFINITY }}
               >
                 <Button
                   size="lg"
-                  className="bg-[#0EA5E9] hover:bg-[#0284C7] text-white px-8 py-3 shadow-lg"
+                  className="bg-gradient-to-r from-[#06B6D4] to-[#0EA5E9] hover:from-[#0891B2] hover:to-[#0284C7] text-white px-8 py-3 shadow-2xl hover:shadow-[0_20px_60px_rgba(6,182,212,0.4)] transition-all duration-500"
                 >
                   Sign Up
                 </Button>
               </motion.div>
               <motion.div
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ scale: 1.05, y: -3 }}
                 whileTap={{ scale: 0.95 }}
               >
                 <Button
                   size="lg"
                   variant="outline"
-                  className={`px-8 py-3 shadow-lg ${
+                  className={`px-8 py-3 shadow-xl hover:shadow-2xl transition-all duration-500 ${
                     theme === "light"
-                      ? "border-[#0EA5E9]/50 text-[#0B1220] hover:bg-[#0EA5E9]/20 bg-[#E0F2FE]/50 backdrop-blur-sm"
-                      : "border-white/50 text-white hover:bg-white/20 bg-[#0B1220]/50 backdrop-blur-sm"
+                      ? "border-[#06B6D4]/60 text-[#0F172A] hover:bg-[#06B6D4]/15 bg-white/60 backdrop-blur-xl"
+                      : "border-[#06B6D4]/60 text-[#E2E8F0] hover:bg-[#06B6D4]/15 bg-[#0F172A]/60 backdrop-blur-xl"
                   }`}
                 >
                   Log In
@@ -943,14 +725,14 @@ export default function LandingPage() {
             </motion.div>
 
             <motion.p
-              className={`text-sm drop-shadow-sm ${
-                theme === "light" ? "text-[#0B1220]/80" : "text-white/90"
+              className={`text-sm ${
+                theme === "light" ? "text-[#475569]" : "text-[#CBD5E1]"
               }`}
               style={{
                 textShadow:
                   theme === "light"
-                    ? "0 1px 2px rgba(11,18,32,0.2)"
-                    : "0 1px 2px rgba(0,0,0,0.5)",
+                    ? "0 1px 5px rgba(71,85,105,0.1)"
+                    : "0 1px 5px rgba(0,0,0,0.3)",
               }}
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
@@ -961,60 +743,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Footer */}
-        <footer
-          className={`py-12 px-6 border-t ${
-            theme === "light" ? "border-[#0EA5E9]/30" : "border-white/20"
-          }`}
-        >
-          <div className="container mx-auto max-w-6xl">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-              <div
-                className={`flex gap-6 text-sm ${
-                  theme === "light" ? "text-[#0B1220]/70" : "text-white/80"
-                }`}
-              >
-                <a
-                  href="#"
-                  className={`transition-colors ${
-                    theme === "light"
-                      ? "hover:text-[#0B1220]"
-                      : "hover:text-white"
-                  }`}
-                >
-                  About
-                </a>
-                <a
-                  href="#"
-                  className={`transition-colors ${
-                    theme === "light"
-                      ? "hover:text-[#0B1220]"
-                      : "hover:text-white"
-                  }`}
-                >
-                  Docs
-                </a>
-                <a
-                  href="#"
-                  className={`transition-colors ${
-                    theme === "light"
-                      ? "hover:text-[#0B1220]"
-                      : "hover:text-white"
-                  }`}
-                >
-                  Contact
-                </a>
-              </div>
-              <div
-                className={`text-sm ${
-                  theme === "light" ? "text-[#0B1220]/70" : "text-white/80"
-                }`}
-              >
-                © FloatChat
-              </div>
-            </div>
-          </div>
-        </footer>
+        <Footer theme={theme} />
       </div>
     </div>
   );
