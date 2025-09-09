@@ -1,8 +1,9 @@
+
 import os
 import psycopg2
 import traceback
 from dotenv import load_dotenv
-from transform import ingest_file
+from core.ETL.transform import ingest_file
 
 load_dotenv()  # take environment variables from .env.
 ROOT = "./argo_nc"    # same --dest you used in extract.py
@@ -19,12 +20,13 @@ def walk_and_ingest():
                     continue
                 full = os.path.join(dirpath, name)
                 rel = os.path.relpath(full, os.path.join(ROOT, "dac")).replace("\\","/")
+                
                 try:
                     print(f"[INGEST] {rel} ...")
                     ingest_file(full, rel, conn)
                 except Exception as e:
-                    # print the error and move on to next file
                     print(f"[ERROR] ingest failed for {rel}: {e}")
+                    conn.rollback()  # <-- REQUIRED so the next file doesn’t fail
                     traceback.print_exc()
 
 if __name__ == "__main__":

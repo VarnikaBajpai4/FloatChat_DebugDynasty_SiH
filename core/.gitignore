@@ -9,6 +9,9 @@ ENV/
 argo_nc/
 indexes/
 
+chroma_data/
+core/chroma_data/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
