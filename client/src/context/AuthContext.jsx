@@ -59,11 +59,13 @@ export function AuthProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
+      // Normalize email to lowercase before sending to server
+      const normalizedEmail = email.toLowerCase();
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: normalizedEmail, password }),
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
@@ -88,11 +90,13 @@ export function AuthProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
+      // Normalize email to lowercase before sending to server
+      const normalizedEmail = email.toLowerCase();
       const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email: normalizedEmail, password }),
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));

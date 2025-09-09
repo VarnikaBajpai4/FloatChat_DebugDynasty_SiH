@@ -1,23 +1,35 @@
 const mongoose = require ('mongoose');
 
 const conversationSchema = new mongoose.Schema({
-  userId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', 
-    required: true 
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   },
-  title: { 
-    type: String, 
+  title: {
+    type: String,
     required: true,
-    default: 'New Chat' 
+    default: 'New Chat'
   },
-  createdAt: { 
-    type: Date, 
-    default: Date.now 
+  role: {
+    type: String,
+    enum: ['Default', 'Student', 'Researcher', 'Policy-Maker'],
+    required: true,
+    default: 'Default',
   },
-  updatedAt: { 
-    type: Date, 
-    default: Date.now 
+  mode: {
+    type: String,
+    enum: ['Default', 'GeoMap', 'Prediction'],
+    required: true,
+    default: 'Default',
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
   },
 });
 const Conversation = mongoose.model('Conversation', conversationSchema);

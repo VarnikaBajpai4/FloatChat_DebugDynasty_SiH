@@ -87,7 +87,7 @@ export default function AuthModal({ open, onClose, mode = "login" }) {
         e.username = "3-20 chars, letters/numbers/underscore";
     }
     if (!email) e.email = "Email is required";
-    else if (!EMAIL_RE.test(email)) e.email = "Enter a valid email";
+    else if (!EMAIL_RE.test(email.toLowerCase())) e.email = "Enter a valid email";
 
     if (!password) e.password = "Password is required";
     else if (!PASSWORD_RE.test(password))
@@ -139,10 +139,12 @@ export default function AuthModal({ open, onClose, mode = "login" }) {
     setSubmitError(null);
     setError?.(null);
     try {
+      // Normalize email to lowercase before processing
+      const normalizedEmail = email.toLowerCase();
       if (isSignup) {
-        await signup(username, email, password);
+        await signup(username, normalizedEmail, password);
       } else {
-        await login(email, password);
+        await login(normalizedEmail, password);
       }
       onClose?.();
       navigate("/chat", { replace: true });
