@@ -74,6 +74,7 @@ if __name__ == "__main__":
     from pathlib import Path
 
     # Minimal demo payload: grid of lon/lat bins with counts
+    # Demo payload: grid of lon/lat bins with more varied counts and values
     demo = {
         "structuredContent": {
             "results": [
@@ -81,6 +82,15 @@ if __name__ == "__main__":
                 {"lon_bin": -70, "lat_bin": 30, "wmo": 12345, "qc": 2},
                 {"lon_bin": -69, "lat_bin": 30, "wmo": 99999, "qc": 3},
                 {"lon_bin": -70, "lat_bin": 31, "wmo": 12345, "qc": 1},
+                {"lon_bin": -69, "lat_bin": 31, "wmo": 88888, "qc": 2},
+                {"lon_bin": -68, "lat_bin": 30, "wmo": 77777, "qc": 1},
+                {"lon_bin": -68, "lat_bin": 31, "wmo": 77777, "qc": 2},
+                {"lon_bin": -70, "lat_bin": 32, "wmo": 12345, "qc": 3},
+                {"lon_bin": -69, "lat_bin": 32, "wmo": 88888, "qc": 1},
+                {"lon_bin": -68, "lat_bin": 32, "wmo": 77777, "qc": 2},
+                {"lon_bin": -67, "lat_bin": 30, "wmo": 55555, "qc": 1},
+                {"lon_bin": -67, "lat_bin": 31, "wmo": 55555, "qc": 2},
+                {"lon_bin": -67, "lat_bin": 32, "wmo": 55555, "qc": 3},
             ]
         }
     }
