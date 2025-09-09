@@ -64,6 +64,16 @@ export default function Chat() {
   // GeoMap: hold a confirmed polygon before first send
   const [geoPendingCoords, setGeoPendingCoords] = useState(null);
 
+  // Prediction mode state
+  const [predVar, setPredVar] = useState("temperature");
+  const [predHorizonNum, setPredHorizonNum] = useState(14);
+  const [predHorizonUnit, setPredHorizonUnit] = useState("days"); // days|weeks|months|years
+  const [predSinceDays, setPredSinceDays] = useState(720);
+  const [predReturnHistory, setPredReturnHistory] = useState(true);
+  const [predHistoryDays, setPredHistoryDays] = useState(30);
+  const [predLoading, setPredLoading] = useState(false);
+  const [predError, setPredError] = useState("");
+  const [predResult, setPredResult] = useState(null);
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good morning";
@@ -314,6 +324,55 @@ export default function Chat() {
     setPrompt("");
   };
 
+  // Run prediction via backend API
+  const handleRunPrediction = async () => {
+    setPredError("");
+    setPredResult(null);
+    setPredLoading(true);
+    try {
+      const singular = { days: "day", weeks: "week", months: "month", years: "year" };
+      const unit = Number(predHorizonNum) === 1 ? singular[predHorizonUnit] : predHorizonUnit;
+      const horizon = `${Number(predHorizonNum)} ${unit}`;
+
+      const payload = {
+        variable: predVar,
+        horizon,
+        sinceDays: Number(predSinceDays) || 1095,
+        returnHistory: Boolean(predReturnHistory),
+        historyDays: Number(predHistoryDays) || 30,
+      };
+
+      const res = await fetch(`${API_BASE}/api/predictions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+
+      // Try to parse JSON either in success or error paths
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok || !data?.success) {
+        const baseMsg = data?.error || res.statusText || "Prediction failed";
+        const details =
+          typeof data?.details === "string" ? ` — ${String(data.details).slice(0, 300)}` : "";
+        const message = `${baseMsg}${details}`;
+        console.error("Prediction failed:", { status: res.status, data });
+        throw new Error(message);
+      }
+
+      setPredResult(data);
+    } catch (e) {
+      setPredError(e?.message || "Prediction failed");
+    } finally {
+      setPredLoading(false);
+    }
+  };
   const suggestions = [
     "Nearest floats to 12.9N, 74.8E",
     "Plot salinity in Mar 2023",
@@ -690,7 +749,26 @@ export default function Chat() {
 
         {/* Messages area or Center greeting */}
         <div className="relative h-[calc(100%-56px)]">
-          {!showGreeting ? (
+          {selectedMode === "Prediction" ? (
+            <PredictionPanel
+              predVar={predVar}
+              setPredVar={setPredVar}
+              predHorizonNum={predHorizonNum}
+              setPredHorizonNum={setPredHorizonNum}
+              predHorizonUnit={predHorizonUnit}
+              setPredHorizonUnit={setPredHorizonUnit}
+              predSinceDays={predSinceDays}
+              setPredSinceDays={setPredSinceDays}
+              predReturnHistory={predReturnHistory}
+              setPredReturnHistory={setPredReturnHistory}
+              predHistoryDays={predHistoryDays}
+              setPredHistoryDays={setPredHistoryDays}
+              predLoading={predLoading}
+              predError={predError}
+              predResult={predResult}
+              onRun={handleRunPrediction}
+            />
+          ) : !showGreeting ? (
             <div className="absolute inset-0 overflow-auto px-4 py-6">
               <MessageList messages={messages} isStreaming={sending} />
             </div>
@@ -760,7 +838,7 @@ export default function Chat() {
           )}
 
           {/* Bottom input bar with Role dropdown on the left */}
-          {!(selectedMode === "GeoMap" && showGreeting && !modeLocked && !geoPendingCoords) && (
+          {selectedMode !== "Prediction" && !(selectedMode === "GeoMap" && showGreeting && !modeLocked && !geoPendingCoords) && (
             <form onSubmit={handleSend} className="absolute left-0 right-0 bottom-4 flex justify-center px-4">
               <motion.div
                 className={cn(
@@ -1218,6 +1296,575 @@ function GeoMapPicker({ onConfirm }) {
           </Button>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ---------- Prediction Panel + Mini Chart ---------- */
+function PredictionPanel({
+  predVar,
+  setPredVar,
+  predHorizonNum,
+  setPredHorizonNum,
+  predHorizonUnit,
+  setPredHorizonUnit,
+  predSinceDays,
+  setPredSinceDays,
+  predReturnHistory,
+  setPredReturnHistory,
+  predHistoryDays,
+  setPredHistoryDays,
+  predLoading,
+  predError,
+  predResult,
+  onRun,
+}) {
+  const VARS = [
+    { key: "temperature", label: "Temperature (\u00B0C)", unit: "\u00B0C" },
+    { key: "salinity", label: "Salinity (PSU)", unit: "PSU" },
+    { key: "oxygen", label: "Oxygen (\u00B5mol/kg)", unit: "\u00B5mol/kg" },
+    { key: "chlorophyll", label: "Chlorophyll (mg/m\u00B3)", unit: "mg/m\u00B3" },
+  ];
+  const UNITS = ["days", "weeks", "months", "years"];
+  const selectedVar = VARS.find((v) => v.key === predVar) || VARS[0];
+
+  const unit = selectedVar.unit;
+
+  const hasData =
+    Array.isArray(predResult?.predictions) && predResult.predictions.length > 0;
+
+  const historyData =
+    predResult?.input?.returnHistory && Array.isArray(predResult?.history)
+      ? predResult.history
+      : [];
+
+  const predictionsData = Array.isArray(predResult?.predictions)
+    ? predResult.predictions
+    : [];
+
+  const meta = predResult?.meta || {};
+
+  const runDisabled = predLoading || !predVar || !predHorizonNum || !predHorizonUnit;
+
+  const resetLocal = () => {
+    setPredHistoryDays(30);
+    setPredReturnHistory(true);
+    setPredSinceDays(720);
+  };
+
+  const downloadCSV = (rows, headers, filename) => {
+    const csv = [headers.join(",")]
+      .concat(rows.map((r) => headers.map((h) => r[h]).join(",")))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="absolute inset-0 overflow-auto px-4 py-6">
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="max-w-5xl mx-auto space-y-4"
+      >
+        {/* Controls */}
+        <div className="bg-white/90 border border-[#06B6D4]/30 backdrop-blur-xl rounded-2xl p-4 shadow">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Variable */}
+              <div>
+                <div className="text-xs text-slate-500 mb-1">Variable</div>
+                <select
+                  value={predVar}
+                  onChange={(e) => setPredVar(e.target.value)}
+                  className={cn(
+                    "text-sm rounded-full border border-[#06B6D4]/30 bg-white/70",
+                    "px-3 py-1.5 text-slate-700 hover:bg-white outline-none"
+                  )}
+                >
+                  {VARS.map((v) => (
+                    <option key={v.key} value={v.key}>
+                      {v.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Horizon */}
+              <div>
+                <div className="text-xs text-slate-500 mb-1">Horizon</div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    value={predHorizonNum}
+                    onChange={(e) =>
+                      setPredHorizonNum(Math.max(1, Number(e.target.value || 1)))
+                    }
+                    className={cn(
+                      "w-20 text-sm rounded-full border border-[#06B6D4]/30",
+                      "bg-white/70 px-3 py-1.5 text-slate-700 outline-none"
+                    )}
+                  />
+                  <select
+                    value={predHorizonUnit}
+                    onChange={(e) => setPredHorizonUnit(e.target.value)}
+                    className={cn(
+                      "text-sm rounded-full border border-[#06B6D4]/30 bg-white/70",
+                      "px-3 py-1.5 text-slate-700 hover:bg-white outline-none"
+                    )}
+                  >
+                    {UNITS.map((u) => (
+                      <option key={u} value={u}>
+                        {u}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* History window */}
+              <div>
+                <div className="text-xs text-slate-500 mb-1">History window (days)</div>
+                <input
+                  type="number"
+                  min={30}
+                  step={30}
+                  value={predSinceDays}
+                  onChange={(e) =>
+                    setPredSinceDays(Math.max(1, Number(e.target.value || 30)))
+                  }
+                  className={cn(
+                    "w-28 text-sm rounded-full border border-[#06B6D4]/30",
+                    "bg-white/70 px-3 py-1.5 text-slate-700 outline-none"
+                  )}
+                  title="Days of historical data used to fit the model"
+                />
+              </div>
+
+              {/* Include History */}
+              <div className="flex items-center gap-2 mt-5 sm:mt-0">
+                <input
+                  id="returnHistory"
+                  type="checkbox"
+                  checked={predReturnHistory}
+                  onChange={(e) => setPredReturnHistory(e.target.checked)}
+                  className="size-4 accent-[#06B6D4]"
+                />
+                <label htmlFor="returnHistory" className="text-sm text-slate-700">
+                  Include history
+                </label>
+              </div>
+
+              {/* History days to return */}
+              <div>
+                <div className="text-xs text-slate-500 mb-1">Return last (days)</div>
+                <input
+                  type="number"
+                  min={1}
+                  value={predHistoryDays}
+                  onChange={(e) =>
+                    setPredHistoryDays(Math.max(1, Number(e.target.value || 1)))
+                  }
+                  disabled={!predReturnHistory}
+                  className={cn(
+                    "w-24 text-sm rounded-full border border-[#06B6D4]/30",
+                    "px-3 py-1.5",
+                    predReturnHistory
+                      ? "bg-white/70 text-slate-700"
+                      : "bg-slate-100 text-slate-400 cursor-not-allowed",
+                    "outline-none"
+                  )}
+                  title="Days of historical series to include in response"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                onClick={resetLocal}
+                variant="outline"
+                className="rounded-full bg-white/90 hover:bg-white"
+                disabled={predLoading}
+              >
+                Reset
+              </Button>
+              <Button
+                type="button"
+                onClick={onRun}
+                disabled={runDisabled}
+                className={cn(
+                  "rounded-full px-4",
+                  "bg-gradient-to-r from-[#06B6D4] to-[#0EA5E9] text-white",
+                  predLoading && "opacity-80"
+                )}
+              >
+                {predLoading ? "Running..." : "Run Prediction"}
+              </Button>
+            </div>
+          </div>
+
+          {predError ? (
+            <div className="mt-3 rounded-xl border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-sm">
+              {predError}
+            </div>
+          ) : null}
+        </div>
+
+        {/* Output */}
+        <div className="bg-white/90 border border-[#06B6D4]/30 backdrop-blur-xl rounded-2xl p-4 shadow">
+          {!hasData ? (
+            <div className="text-center text-slate-600 py-10">
+              Configure inputs and click “Run Prediction” to see results.
+            </div>
+          ) : (
+            <>
+              {/* Summary */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <SummaryTile
+                  label="Variable"
+                  value={selectedVar.label}
+                  subtitle={`Unit: ${unit}`}
+                />
+                <SummaryTile
+                  label="Horizon"
+                  value={`${predResult?.input?.horizonDays ?? "-"} days`}
+                  subtitle={predResult?.input?.horizon}
+                />
+                <SummaryTile
+                  label="History Window"
+                  value={`${predResult?.input?.sinceDays ?? "-"} days`}
+                  subtitle={
+                    predResult?.input?.returnHistory
+                      ? `Returning last ${predResult?.input?.historyDays} days`
+                      : "Not included"
+                  }
+                />
+                <SummaryTile
+                  label="Rows Used"
+                  value={meta?.rowsFetched ?? "-"}
+                  subtitle="Interpolated daily"
+                />
+              </div>
+
+              {/* Chart */}
+              <div className="mt-4 rounded-xl border border-[#06B6D4]/20 bg-white/80 p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-medium text-slate-800">History & Prediction</div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 text-xs text-slate-600">
+                      <span className="inline-block w-3 h-[2px] bg-[#06B6D4]" /> History
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-xs text-slate-600">
+                      <span className="inline-block w-3 h-[2px] bg-[#0EA5E9] border-b border-[#0EA5E9] border-dashed" /> Prediction
+                    </span>
+                  </div>
+                </div>
+                <LineChartPrediction
+                  unit={unit}
+                  history={historyData}
+                  predictions={predictionsData}
+                  height={280}
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="mt-3 flex items-center gap-2">
+                {historyData.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full bg-white/90 hover:bg-white"
+                    onClick={() =>
+                      downloadCSV(
+                        historyData.map((h) => ({ date: h.date, value: h.value })),
+                        ["date", "value"],
+                        "history.csv"
+                      )
+                    }
+                  >
+                    Download History CSV
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full bg-white/90 hover:bg-white"
+                  onClick={() =>
+                    downloadCSV(
+                      predictionsData.map((p) => ({
+                        date: p.date,
+                        predicted: p.predicted,
+                      })),
+                      ["date", "predicted"],
+                      "predictions.csv"
+                    )
+                  }
+                >
+                  Download Predictions CSV
+                </Button>
+              </div>
+
+              {/* Tables */}
+              <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
+                <div className="rounded-xl border border-[#06B6D4]/20 bg-white/80">
+                  <div className="px-3 py-2 text-sm font-medium text-slate-800">
+                    Predictions ({predictionsData.length})
+                  </div>
+                  <div className="max-h-72 overflow-auto">
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 bg-white/90">
+                        <tr className="text-slate-600">
+                          <th className="text-left px-3 py-2 font-semibold border-b border-slate-200">Date</th>
+                          <th className="text-right px-3 py-2 font-semibold border-b border-slate-200">
+                            Predicted ({unit})
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {predictionsData.map((p, i) => (
+                          <tr key={i} className="text-slate-800">
+                            <td className="px-3 py-1.5 border-b border-slate-100">{p.date}</td>
+                            <td className="px-3 py-1.5 border-b border-slate-100 text-right">
+                              {typeof p.predicted === "number" ? p.predicted.toFixed(3) : p.predicted}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-[#06B6D4]/20 bg-white/80">
+                  <div className="px-3 py-2 text-sm font-medium text-slate-800">
+                    History ({historyData.length})
+                  </div>
+                  <div className="max-h-72 overflow-auto">
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 bg-white/90">
+                        <tr className="text-slate-600">
+                          <th className="text-left px-3 py-2 font-semibold border-b border-slate-200">Date</th>
+                          <th className="text-right px-3 py-2 font-semibold border-b border-slate-200">
+                            Value ({unit})
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {historyData.map((h, i) => (
+                          <tr key={i} className="text-slate-800">
+                            <td className="px-3 py-1.5 border-b border-slate-100">{h.date}</td>
+                            <td className="px-3 py-1.5 border-b border-slate-100 text-right">
+                              {typeof h.value === "number" ? h.value.toFixed(3) : h.value}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function SummaryTile({ label, value, subtitle }) {
+  return (
+    <div className="rounded-xl border border-[#06B6D4]/20 bg-white/80 p-3">
+      <div className="text-xs text-slate-500">{label}</div>
+      <div className="text-lg font-semibold text-slate-800">{value}</div>
+      {subtitle ? <div className="text-xs text-slate-500 mt-0.5">{subtitle}</div> : null}
+    </div>
+  );
+}
+
+function LineChartPrediction({ history, predictions, height = 280, unit }) {
+  // Parse to Date objects
+  const parse = (d) => new Date(d);
+  const h = Array.isArray(history) ? history.map((x) => ({ x: parse(x.date), y: Number(x.value) })) : [];
+  const p = Array.isArray(predictions) ? predictions.map((x) => ({ x: parse(x.date), y: Number(x.predicted) })) : [];
+
+  const all = [...h, ...p];
+  if (all.length === 0) {
+    return <div className="text-center text-slate-500 py-10 text-sm">No data to plot</div>;
+  }
+
+  const xMin = new Date(Math.min(...all.map((d) => d.x.getTime())));
+  const xMax = new Date(Math.max(...all.map((d) => d.x.getTime())));
+  const yVals = all.map((d) => d.y).filter((v) => Number.isFinite(v));
+  const yMin = Math.min(...yVals);
+  const yMax = Math.max(...yVals);
+  const yPad = (yMax - yMin) * 0.1 || 1;
+  const y0 = yMin - yPad;
+  const y1 = yMax + yPad;
+
+  const W = 800;
+  const H = height;
+  const PAD_L = 48;
+  const PAD_R = 16;
+  const PAD_T = 16;
+  const PAD_B = 36;
+
+  const xScale = (d) =>
+    PAD_L + ((d.getTime() - xMin.getTime()) / (xMax.getTime() - xMin.getTime() || 1)) * (W - PAD_L - PAD_R);
+  const yScale = (v) => PAD_T + (1 - (v - y0) / (y1 - y0 || 1)) * (H - PAD_T - PAD_B);
+
+  const toPath = (arr) => {
+    if (!arr.length) return "";
+    return arr
+      .map((pt, i) => `${i === 0 ? "M" : "L"} ${xScale(pt.x).toFixed(2)} ${yScale(pt.y).toFixed(2)}`)
+      .join(" ");
+  };
+
+  // X ticks
+  const xTickCount = 5;
+  const ms = xMax.getTime() - xMin.getTime();
+  const xTicks = Array.from({ length: xTickCount + 1 }, (_, i) => new Date(xMin.getTime() + (ms * i) / xTickCount));
+  const fmtDate = (d) =>
+    `${String(d.getFullYear()).slice(2)}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+  // Y ticks (nice) and formatting to up to 3 decimals
+  const niceStep = (span, count) => {
+    const raw = span / Math.max(1, count);
+    const power = Math.floor(Math.log10(Math.max(1e-12, raw)));
+    const base = Math.pow(10, power);
+    const mult = raw / base;
+    let step;
+    if (mult <= 1) step = 1;
+    else if (mult <= 2) step = 2;
+    else if (mult <= 5) step = 5;
+    else step = 10;
+    return step * base;
+  };
+  const genYTicks = (min, max, count) => {
+    const span = Math.max(1e-12, max - min);
+    const step = niceStep(span, count);
+    const start = Math.ceil(min / step) * step;
+    const end = Math.floor(max / step) * step;
+    const ticks = [];
+    for (let v = start; v <= end + step * 0.5; v += step) ticks.push(v);
+    if (ticks.length === 0) ticks.push(min, max);
+    return ticks;
+  };
+  const yTicks = genYTicks(y0, y1, 5);
+  const fmtVal = (v) => {
+    if (!Number.isFinite(v)) return String(v);
+    return v.toFixed(3).replace(/\.?0+$/, "");
+  };
+
+  // Reference today line if in range
+  const today = new Date();
+  const showToday = today >= xMin && today <= xMax;
+  const todayX = xScale(today);
+
+  return (
+    <div className="w-full overflow-x-auto">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
+        {/* Background gridlines (X) */}
+        {xTicks.map((t, i) => {
+          const x = xScale(t);
+          return <line key={`xg-${i}`} x1={x} y1={PAD_T} x2={x} y2={H - PAD_B} stroke="#e2e8f0" strokeWidth="1" />;
+        })}
+        {/* Background gridlines (Y) */}
+        {yTicks.map((v, i) => {
+          const y = yScale(v);
+          return <line key={`yg-${i}`} x1={PAD_L} y1={y} x2={W - PAD_R} y2={y} stroke="#e2e8f0" strokeWidth="1" />;
+        })}
+
+        {/* Axes */}
+        <line x1={PAD_L} y1={H - PAD_B} x2={W - PAD_R} y2={H - PAD_B} stroke="#cbd5e1" strokeWidth="1" />
+        <line x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={H - PAD_B} stroke="#cbd5e1" strokeWidth="1" />
+
+        {/* X ticks + labels */}
+        {xTicks.map((t, i) => {
+          const x = xScale(t);
+          return (
+            <g key={`xt-${i}`}>
+              <line x1={x} y1={H - PAD_B} x2={x} y2={H - PAD_B + 4} stroke="#94a3b8" />
+              <text x={x} y={H - PAD_B + 16} fontSize="10" textAnchor="middle" fill="#475569">
+                {fmtDate(t)}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Y ticks + labels (up to 3 decimals) */}
+        {yTicks.map((v, i) => {
+          const y = yScale(v);
+          return (
+            <g key={`yt-${i}`}>
+              <line x1={PAD_L - 4} y1={y} x2={PAD_L} y2={y} stroke="#94a3b8" />
+              <text x={PAD_L - 8} y={y + 3} fontSize="10" textAnchor="end" fill="#475569">
+                {fmtVal(v)}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Today line */}
+        {showToday ? (
+          <g>
+            <line x1={todayX} y1={PAD_T} x2={todayX} y2={H - PAD_B} stroke="#94a3b8" strokeDasharray="3 3" />
+            <text x={todayX + 4} y={PAD_T + 12} fontSize="10" fill="#475569">
+              Today
+            </text>
+          </g>
+        ) : null}
+
+        {/* Paths */}
+        {/* History */}
+        <path d={toPath(h)} fill="none" stroke="#06B6D4" strokeWidth="2" />
+        {/* Predictions */}
+        <path d={toPath(p)} fill="none" stroke="#0EA5E9" strokeWidth="2" strokeDasharray="6 4" />
+
+        {/* Point markers and value labels (up to 3 decimals) */}
+        {h.map((pt, i) => {
+          const cx = xScale(pt.x);
+          const cy = yScale(pt.y);
+          return (
+            <g key={`hp-${i}`}>
+              <circle cx={cx} cy={cy} r="2.5" fill="#06B6D4" stroke="#0284C7" strokeWidth="1" />
+              <text x={cx} y={cy - 6} fontSize="9" textAnchor="middle" fill="#0f172a">
+                {fmtVal(pt.y)}
+              </text>
+            </g>
+          );
+        })}
+        {p.map((pt, i) => {
+          const cx = xScale(pt.x);
+          const cy = yScale(pt.y);
+          return (
+            <g key={`pp-${i}`}>
+              <circle cx={cx} cy={cy} r="2.5" fill="#ffffff" stroke="#0EA5E9" strokeWidth="1.5" />
+              <text x={cx} y={cy - 6} fontSize="9" textAnchor="middle" fill="#0f172a">
+                {fmtVal(pt.y)}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Y axis unit label */}
+        <text
+          x={PAD_L - 36}
+          y={(H - PAD_B + PAD_T) / 2}
+          fontSize="10"
+          fill="#475569"
+          transform={`rotate(-90 ${PAD_L - 36}, ${(H - PAD_B + PAD_T) / 2})`}
+          textAnchor="middle"
+        >
+          {unit}
+        </text>
+      </svg>
     </div>
   );
 }
