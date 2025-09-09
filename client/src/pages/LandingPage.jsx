@@ -1,5 +1,6 @@
 import { motion, useScroll, useTransform, useInView } from "framer-motion";
-import { Button } from "@/components/ui/button";
+import SignupButton from "@/components/auth/SignupButton";
+import LoginButton from "@/components/auth/LoginButton";
 import { Card } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useTheme } from "@/components/theme-provider";
@@ -325,7 +326,7 @@ export default function LandingPage() {
           </motion.div>
           <div className="flex gap-4 items-center">
             <ThemeToggle />
-            <Button
+            <SignupButton
               variant="ghost"
               className={`${
                 theme === "light"
@@ -334,8 +335,8 @@ export default function LandingPage() {
               }`}
             >
               Sign Up
-            </Button>
-            <Button
+            </SignupButton>
+            <LoginButton
               variant="ghost"
               className={`${
                 theme === "light"
@@ -344,7 +345,7 @@ export default function LandingPage() {
               }`}
             >
               Log In
-            </Button>
+            </LoginButton>
           </div>
         </div>
       </motion.header>
@@ -411,18 +412,18 @@ export default function LandingPage() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <Button
+                <SignupButton
                   size="lg"
                   className="bg-[#0EA5E9] hover:bg-[#0284C7] text-white px-8 py-3 shadow-lg"
                 >
                   Sign Up
-                </Button>
+                </SignupButton>
               </motion.div>
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <Button
+                <LoginButton
                   size="lg"
                   variant="outline"
                   className={`px-8 py-3 shadow-lg ${
@@ -432,7 +433,7 @@ export default function LandingPage() {
                   }`}
                 >
                   Log In
-                </Button>
+                </LoginButton>
               </motion.div>
             </motion.div>
 
@@ -917,18 +918,18 @@ export default function LandingPage() {
                 }}
                 transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
               >
-                <Button
+                <SignupButton
                   size="lg"
                   className="bg-[#0EA5E9] hover:bg-[#0284C7] text-white px-8 py-3 shadow-lg"
                 >
                   Sign Up
-                </Button>
+                </SignupButton>
               </motion.div>
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <Button
+                <LoginButton
                   size="lg"
                   variant="outline"
                   className={`px-8 py-3 shadow-lg ${
@@ -938,7 +939,7 @@ export default function LandingPage() {
                   }`}
                 >
                   Log In
-                </Button>
+                </LoginButton>
               </motion.div>
             </motion.div>
 
