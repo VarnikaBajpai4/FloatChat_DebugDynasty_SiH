@@ -7,9 +7,9 @@ from tabulate import tabulate
 
 # --- Database connection details ---
 DB_CONFIG = {
-    "dbname": "floatchat",
+    "dbname": "Argo",
     "user": "postgres",
-    "password": "admin",
+    "password": "Vasava@2024",
     "host": "localhost",
     "port": 5432,
 }
@@ -114,5 +114,5 @@ def main():
         print("Error:", e)
 
 
-if __name__ == "__main__":
+if __name__ == "_main_":
     main()
