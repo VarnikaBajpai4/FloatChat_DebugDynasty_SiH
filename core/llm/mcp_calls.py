@@ -1,0 +1,14 @@
+from fastmcp import Client
+
+# Connect to the MCP server running at port 8000
+mcp_client = Client("http://localhost:8000/mcp")
+
+async def run_query(query):
+    async with mcp_client:
+        result = await mcp_client.call_tool("sql_query_tool", {"query": query})
+        return result
+
+async def fetch_schema():
+    async with mcp_client:
+        schema = await mcp_client.read_resource("data://knowledge_base/sql_schema_json")
+        return schema
