@@ -3,7 +3,7 @@ import os
 import psycopg2
 import traceback
 from dotenv import load_dotenv
-from core.ETL.transform import ingest_file
+from transform import ingest_file
 
 load_dotenv()  # take environment variables from .env.
 ROOT = "./argo_nc"    # same --dest you used in extract.py

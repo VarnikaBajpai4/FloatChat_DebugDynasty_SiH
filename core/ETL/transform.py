@@ -1,4 +1,3 @@
-
 import os
 import re
 import json
@@ -7,6 +6,8 @@ import psycopg2
 from psycopg2.extras import execute_values, Json
 from netCDF4 import Dataset, num2date
 from datetime import datetime, timezone
+from netCDF4 import Dataset, num2date, chartostring
+
 
 NC_RE = re.compile(
     r'(?P<prefix>[A-Za-z]*)(?P<wmo>\d{6,10})_(?P<cycle>\d+[A-Za-z]?)\.nc$'
@@ -178,6 +179,55 @@ def parse_rel(rel_path: str):
     file_type = "bgc_sprof" if prefix.startswith("S") or "sprof" in rel_path.lower() else "core_profile"
     return dac, wmo, cycle_number, file_type, source_file
 
+def _decode_text_var(var, index=None):
+    """
+    Robustly decode NetCDF text/char/byte variables to a Python str.
+    - Works for scalar bytes, 1D/2D char arrays (S1), and object bytes.
+    - If index is given (per-profile), returns that element decoded.
+    """
+    if var is None:
+        return None
+    try:
+        # Try fast path: chartostring converts char arrays (S1) to string array
+        arr = chartostring(var[:])  # may return np.ndarray of dtype '<U...'
+        if index is None:
+            # If the var is scalar-like after chartostring
+            if arr.ndim == 0:
+                return str(arr.item()).strip()
+            # Return first by default
+            return str(arr.reshape(-1)[0]).strip()
+        else:
+            flat = arr.reshape(-1)
+            if index < flat.size:
+                return str(flat[index]).strip()
+            return None
+    except Exception:
+        # Fallbacks for non-char arrays / scalars
+        try:
+            if index is None:
+                x = var[:]
+            else:
+                x = var[index]
+        except Exception:
+            return None
+
+        # x could be bytes, np.bytes_, or an array of bytes/chars
+        import numpy as np
+        if isinstance(x, (bytes, np.bytes_)):
+            return x.decode(errors="ignore").strip()
+        if isinstance(x, str):
+            return x.strip()
+        try:
+            a = np.array(x)
+            if a.dtype.kind in ("S", "U"):
+                # Join element-wise and strip
+                return "".join(a.astype(str).tolist()).strip()
+        except Exception:
+            pass
+        # Last resort
+        return str(x).strip()
+
+
 # ---------- Main ingest ----------
 
 def ingest_file(nc_path: str, rel_path: str, conn):
@@ -256,20 +306,9 @@ def ingest_file(nc_path: str, rel_path: str, conn):
             t_utc = _first_time_at_index(ds, pidx)
             lat, lon = _latlon_by_prof(ds, pidx)
 
-            # Per-profile direction & VSS
-            direction = None
-            if direction_arr is not None:
-                try:
-                    direction = _decode_bytes(direction_arr[pidx])
-                except Exception:
-                    direction = _decode_bytes(_as1d(direction_arr)[0] if _as1d(direction_arr) is not None else None)
-
-            vertical_sampling_scheme = None
-            if vss_arr is not None:
-                try:
-                    vertical_sampling_scheme = _decode_bytes(vss_arr[pidx])
-                except Exception:
-                    vertical_sampling_scheme = _decode_bytes(_as1d(vss_arr)[0] if _as1d(vss_arr) is not None else None)
+            # Per-profile direction & VSS (robust decode)
+            direction = _decode_text_var(direction_arr, index=pidx)
+            vertical_sampling_scheme = _decode_text_var(vss_arr, index=pidx)
 
             # Data mode (per-profile if available)
             data_mode = None
