@@ -27,6 +27,7 @@ connectDB();
 // Routes
 app.use('/api/auth', require('./routes/auth.router'));
 app.use('/api/chat', require('./routes/conversation.router'));
+app.use('/api/predictions', require('./routes/predictions.router'));
 
 // Server
 const PORT = process.env.PORT || 5555;

@@ -56,7 +56,7 @@ Constraints:
 
 ORCHESTRATION_PROMPT="""SCOPE
 - Upstream Gatekeeper has validated the query.
-- Task here is SELECTION ONLY: decide which visualization(s) to produce (minimum 1, maximum 3) and specify the data requirements for each.
+- Task here is SELECTION ONLY: decide which single visualization to produce (exactly 1) and specify the data requirements for it.
 - Do NOT write SQL. Do NOT call tools. Output a single JSON object only.
 
 AVAILABLE INPUTS
@@ -65,7 +65,7 @@ AVAILABLE INPUTS
 - USER MESSAGE: current request.
 - MCP RESOURCES: schema/tool summaries you may reference (do not invent entities).
 
-VISUALIZATION CANDIDATES (choose 1–3)
+VISUALIZATION CANDIDATES (choose 1)
 1) timeseries_line
 2) scatter
 3) bar
@@ -96,7 +96,7 @@ QC & VARIABLE POLICY (selection guidance)
 - Downstream SQL Builder will include QC flags or aggregate QC indicators (qc_good_ratio/qc_avg) and prefer adjusted variables when QC is good. Here, just record the QC requirement for each chosen viz.
 
 SELECTION RULES
-- Prefer the single best-fitting viz; include up to three only if each adds distinct value (not redundant).
+- Prefer the single best-fitting viz; produce exactly one (no additional variants).
 - Heuristics:
   • Has time + variable/value → timeseries_line.
   • Has lat/lon/region → map_points (or map_density if many points).
@@ -107,7 +107,7 @@ SELECTION RULES
   • Numeric x vs y comparison → scatter.
 - If none are feasible from available info, indicate what single missing detail is required.
 
-OUTPUT FORMAT (JSON ONLY; no extra text)
+OUTPUT FORMAT (JSON ONLY; no extra text ,Do not include Markdown, code fences (```), or any explanations before/after the JSON.) 
 {
   "chosen_visualizations": [
     {
@@ -124,20 +124,20 @@ OUTPUT FORMAT (JSON ONLY; no extra text)
       },
       "priority": 1
     }
-    // Optionally priority: 2 and 3 for additional non-redundant visualizations
+    // Exactly one visualization; no additional priorities
   ],
   "missing_detail": "<ONE concise question if selection is blocked; otherwise empty>"
 }
 
 CONSTRAINTS
-- Minimum 1 visualization, maximum 3.
+- Exactly 1 visualization.
 - No SQL, no tool calls, no narrative text outside the JSON object.
 - If information is insufficient to commit to any visualization, set "chosen_visualizations": [] and provide exactly one "missing_detail" question.
 """
 
 SQL_PROMPT= """OBJECTIVE
-Given: (a) the USER PROMPT, (b) the last five chat messages (context), (c) the DECIDED VISUALIZATION OP(S) (1–3 ops chosen from the 11), and (d) complete DATABASE SCHEMA context,
-produce for each chosen op exactly ONE safe SELECT statement (PostgreSQL and/or PostGIS if relevant) that returns a tidy result table matching that op’s expected shape. Also return a structured payload describing the shape and column aliases for each op.
+Given: (a) the USER PROMPT, (b) the last five chat messages (context), (c) the DECIDED VISUALIZATION OP (exactly 1 op chosen from the 11), and (d) complete DATABASE SCHEMA context,
+produce exactly ONE safe SELECT statement (PostgreSQL and/or PostGIS if relevant) that returns a tidy result table matching that op’s expected shape. Also return a structured payload describing the shape and column aliases for this op.
 
 GROUNDING
 - Use only tables/columns/joins provided in CONTEXT (schema cards, joins, region aliases→bbox, QC rules, examples).
@@ -217,7 +217,7 @@ PLOT OPS & EXPECTED SHAPES (unchanged)
 SHAPE DISCIPLINE
 For each op, choose the minimal set of columns that exactly match the expected shape. Alias columns in the SELECT to the logical names you declare (e.g., month AS time, mean_psal AS value, depth_m AS depth). Apply needed grouping/resampling/binning in SQL so the result is plot-ready.
 
-OUTPUT FORMAT (JSON object only; no prose)
+OUTPUT FORMAT (JSON object only; no prose , Do not include Markdown, code fences (```), or any explanations before/after the JSON.)
 Return a single JSON object with this structure:
 {
   "intent": "short overall purpose (e.g., 'oxygen trends and spatial coverage in Arabian Sea, last quarter')",
