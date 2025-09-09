@@ -10,4 +10,15 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    port: 5173,
+    proxy: {
+      // Proxy API requests to the server to keep cookies same-origin in dev
+      "/api": {
+        target: "http://localhost:5555",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
 })

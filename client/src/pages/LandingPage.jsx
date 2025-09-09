@@ -1,5 +1,6 @@
 import { motion, useScroll, useTransform, useInView } from "framer-motion";
-import { Button } from "@/components/ui/button";
+import SignupButton from "@/components/auth/SignupButton";
+import LoginButton from "@/components/auth/LoginButton";
 import { Card } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useTheme } from "@/components/theme-provider";
@@ -169,7 +170,7 @@ export default function LandingPage() {
           </motion.div>
           <div className="flex gap-4 items-center">
             <ThemeToggle />
-            <Button
+            <SignupButton
               variant="ghost"
               className={`${
                 theme === "light"
@@ -178,8 +179,8 @@ export default function LandingPage() {
               }`}
             >
               Sign Up
-            </Button>
-            <Button
+            </SignupButton>
+            <LoginButton
               variant="ghost"
               className={`${
                 theme === "light"
@@ -188,7 +189,7 @@ export default function LandingPage() {
               }`}
             >
               Log In
-            </Button>
+            </LoginButton>
           </div>
         </div>
       </motion.header>
@@ -255,7 +256,7 @@ export default function LandingPage() {
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <Button
+                <SignupButton
                   size="lg"
                   className="bg-gradient-to-r from-[#06B6D4] to-[#0EA5E9] hover:from-[#0891B2] hover:to-[#0284C7] text-white px-8 py-3 shadow-xl hover:shadow-2xl transition-all duration-300"
                   style={{
@@ -266,13 +267,13 @@ export default function LandingPage() {
                   }}
                 >
                   Sign Up
-                </Button>
+                </SignupButton>
               </motion.div>
               <motion.div
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <Button
+                <LoginButton
                   size="lg"
                   variant="outline"
                   className={`px-8 py-3 shadow-xl hover:shadow-2xl transition-all duration-300 ${
@@ -282,7 +283,7 @@ export default function LandingPage() {
                   }`}
                 >
                   Log In
-                </Button>
+                </LoginButton>
               </motion.div>
             </motion.div>
 
@@ -699,18 +700,18 @@ export default function LandingPage() {
                 }}
                 transition={{ duration: 3, repeat: Number.POSITIVE_INFINITY }}
               >
-                <Button
+                <SignupButton
                   size="lg"
                   className="bg-gradient-to-r from-[#06B6D4] to-[#0EA5E9] hover:from-[#0891B2] hover:to-[#0284C7] text-white px-8 py-3 shadow-2xl hover:shadow-[0_20px_60px_rgba(6,182,212,0.4)] transition-all duration-500"
                 >
                   Sign Up
-                </Button>
+                </SignupButton>
               </motion.div>
               <motion.div
                 whileHover={{ scale: 1.05, y: -3 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <Button
+                <LoginButton
                   size="lg"
                   variant="outline"
                   className={`px-8 py-3 shadow-xl hover:shadow-2xl transition-all duration-500 ${
@@ -720,7 +721,7 @@ export default function LandingPage() {
                   }`}
                 >
                   Log In
-                </Button>
+                </LoginButton>
               </motion.div>
             </motion.div>
 
