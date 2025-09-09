@@ -14,6 +14,8 @@ const getConversation = async (req, res) => {
             conversations: conversations.map(conversation=>({
                 id: conversation._id,
                 title: conversation.title,
+                role: conversation.role,
+                mode: conversation.mode,
                 createdAt: conversation.createdAt,
                 updatedAt: conversation.updatedAt,
                 userId: conversation.userId,

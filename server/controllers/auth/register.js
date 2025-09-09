@@ -8,13 +8,14 @@ const register= async(req,res)=>{
         if(!name || !email || !password){
             return res.status(400).json({success:false, message:"missing required"})
         }
-        if(await User.findOne({email})){
+        const normalizedEmail = email.toLowerCase();
+        if(await User.findOne({email: normalizedEmail})){
             return res.status(400).json({success:false, message:"User already exists"})
         }
         const hashedPassword= await bcrypt.hash(password, 10);
         const user= await User.create({
             name,
-            email,
+            email: normalizedEmail,
             password: hashedPassword,
         })
         generateTokenAndSetCookie(res,user);

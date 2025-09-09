@@ -16,7 +16,7 @@ const getMessages = async (req, res) => {
       .status(404)
       .json({ success: false, message: "Conversation not found" });
   }
-  if (conversation.user.toString() !== userId) {
+  if (conversation.userId.toString() !== userId) {
     return res
       .status(403)
       .json({ success: false, message: "Unauthorized" });
