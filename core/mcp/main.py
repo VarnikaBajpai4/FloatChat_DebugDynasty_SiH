@@ -1,3 +1,6 @@
+import os
+import uuid
+
 from fastapi import FastAPI
 from fastmcp import FastMCP
 from tools.sql_query import sql_query, SqlQueryInput
@@ -130,14 +133,10 @@ def get_sql_schema_json() -> dict:
 
                     "temp": "DOUBLE PRECISION",
                     "temp_qc": "TEXT",
-                    "temp_adjusted": "DOUBLE PRECISION",
-                    "temp_adjusted_qc": "TEXT",
                     "best_temp": "DOUBLE PRECISION",
 
                     "psal": "DOUBLE PRECISION",
                     "psal_qc": "TEXT",
-                    "psal_adjusted": "DOUBLE PRECISION",
-                    "psal_adjusted_qc": "TEXT",
                     "best_psal": "DOUBLE PRECISION"
                 },
                 "primary_key": ["profile_id", "level_index"]
@@ -153,13 +152,9 @@ def get_sql_schema_json() -> dict:
 
                     "doxy": "DOUBLE PRECISION",
                     "doxy_qc": "TEXT",
-                    "doxy_adjusted": "DOUBLE PRECISION",
-                    "doxy_adjusted_qc": "TEXT",
 
                     "chla": "DOUBLE PRECISION",
                     "chla_qc": "TEXT",
-                    "chla_adjusted": "DOUBLE PRECISION",
-                    "chla_adjusted_qc": "TEXT"
                 },
                 "primary_key": ["profile_id", "level_index"]
             }
@@ -191,7 +186,24 @@ def get_sql_schema_json() -> dict:
             {"from": "levels_bgc.profile_id", "to": "profiles.id", "on_delete": "CASCADE"}
         ]
     }
+@mcp.tool()
+async def generate_time_series_tool(payload:dict):
+    from tools.time_series_api import TimeSeriesPayload, generate_time_series
+    params = TimeSeriesPayload(
+        payload=payload,
+        output="html",
+        title="Temperature over time")
+    result = await generate_time_series(params)
+    
+    html_content = result["plot"]
+    filename = f"{uuid.uuid4().hex}.html"
+    PLOT_DIR = "C:\\Users\\amaan\\Desktop\\Projects\\floatchart\\FloatChat_DebugDynasty_SiH\\core\\llm\\plots"
+    file_path = os.path.join(PLOT_DIR, filename)
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(html_content)
 
+    # Return a URL pointing to the served file
+    return {"plot_url": f"http://localhost:7500/plots/{filename}"}
 
 
 if __name__ == "__main__":
