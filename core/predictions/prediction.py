@@ -1,8 +1,9 @@
 import psycopg2
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import timedelta
 from sklearn.linear_model import LinearRegression
+from tabulate import tabulate  
 
 # --- Database connection details ---
 DB_CONFIG = {
@@ -15,12 +16,11 @@ DB_CONFIG = {
 
 # --- Variable mapping ---
 VARIABLE_MAP = {
-    "temperature": ("levels_core", "best_temp"),
-    "salinity": ("levels_core", "best_psal"),
-    "oxygen": ("levels_bgc", "doxy"),
-    "chlorophyll": ("levels_bgc", "chla"),
+    "temperature": ("levels_core", "best_temp", "°C"),
+    "salinity": ("levels_core", "best_psal", "PSU"),
+    "oxygen": ("levels_bgc", "doxy", "µmol/kg"),
+    "chlorophyll": ("levels_bgc", "chla", "mg/m³"),
 }
-
 
 def parse_horizon(horizon: str):
     horizon = horizon.lower().strip()
@@ -40,7 +40,7 @@ def fetch_data(variable: str, since_days=1095):
     if variable not in VARIABLE_MAP:
         raise ValueError(f"Unsupported variable '{variable}'")
 
-    table, column = VARIABLE_MAP[variable]
+    table, column, unit = VARIABLE_MAP[variable]
 
     query = f"""
         SELECT p.juld_time::date AS date, AVG(l.{column}) AS value
@@ -56,7 +56,7 @@ def fetch_data(variable: str, since_days=1095):
         df = pd.read_sql(query, conn)
 
     print(f"Fetched {len(df)} raw rows from DB")
-    return df
+    return df, unit
 
 
 def interpolate_daily(df):
@@ -91,7 +91,6 @@ def predict_future(df, horizon_days):
 
 
 def main():
-    # Step 1: Get user input
     variable = input("Enter variable (temperature/salinity/oxygen/chlorophyll): ").strip().lower()
     horizon = input("Enter horizon (e.g., '5 days', '2 weeks', '3 months'): ").strip()
 
@@ -99,18 +98,17 @@ def main():
         horizon_days = parse_horizon(horizon)
 
         # Step 2: Fetch and process data
-        df = fetch_data(variable)
+        df, unit = fetch_data(variable)
         df = interpolate_daily(df)
 
         # Step 3: Show recent history
         print("\nRecent historical (daily, last 10):")
-        print(df.tail(10).to_string(index=False))
+        print(tabulate(df.tail(10), headers=["Date", f"Value ({unit})"], tablefmt="pretty", showindex=False))
 
         # Step 4: Predict future
         preds = predict_future(df, horizon_days)
-
         print(f"\nPredicted values for next {horizon_days} days:")
-        print(preds.to_string(index=False))
+        print(tabulate(preds, headers=["Date", f"Predicted ({unit})"], tablefmt="pretty", showindex=False))
 
     except Exception as e:
         print("Error:", e)
