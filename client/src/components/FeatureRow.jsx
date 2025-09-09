@@ -28,11 +28,14 @@ export default function FeatureRow({ theme }) {
             initial={prefersReduced ? { opacity: 0 } : { y: 20, opacity: 0 }}
             whileInView={prefersReduced ? { opacity: 1 } : { y: 0, opacity: 1 }}
             viewport={{ once: true, amount: 0.4 }}
-            transition={prefersReduced ? { duration: 0.3, delay: i * 0.05 } : { type: "spring", stiffness: 260, damping: 26, delay: i * 0.06 }}
+            transition={
+              prefersReduced
+                ? { duration: 0.3, delay: i * 0.05 }
+                : { type: "spring", stiffness: 260, damping: 26, delay: i * 0.06 }
+            }
             whileHover={lift}
             onMouseMove={(e) => {
-              const target = e.currentTarget;
-              const rect = target.getBoundingClientRect();
+              const rect = e.currentTarget.getBoundingClientRect();
               x.set(e.clientX - rect.left);
               y.set(e.clientY - rect.top);
             }}
@@ -42,8 +45,8 @@ export default function FeatureRow({ theme }) {
               "inline-flex items-center gap-2",
               "backdrop-blur-md",
               isLight
-                ? "bg-white/50 text-[#0F172A] ring-1 ring-slate-900/10"
-                : "bg-white/10 text-[#F1F5F9] ring-1 ring-white/10",
+                ? "bg-sky-200/70 text-[#294c9c] ring-1 ring-slate-300/60"
+                : "bg-white/10 text-[#ffffff] ring-1 ring-white/10",
               "shadow-[0_8px_24px_-12px_rgba(0,0,0,0.2)]",
               "transition-[box-shadow,transform,background] duration-300 ease-out",
               "hover:shadow-[0_18px_40px_-12px_rgba(0,0,0,0.35)]",
@@ -58,7 +61,7 @@ export default function FeatureRow({ theme }) {
               className="pointer-events-none absolute inset-0 rounded-full"
               style={{
                 background: isLight
-                  ? "linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.1))"
+                  ? "linear-gradient(180deg, rgba(255,255,255,0.8), rgba(255,255,255,0.3))"
                   : "linear-gradient(180deg, rgba(255,255,255,0.15), rgba(255,255,255,0.02))",
                 WebkitMaskImage: "linear-gradient(#000, transparent 70%)",
                 maskImage: "linear-gradient(#000, transparent 70%)",

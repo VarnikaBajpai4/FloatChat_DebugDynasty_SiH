@@ -15,42 +15,14 @@ import {
   Target,
   CheckCircle,
 } from "lucide-react";
-import { useRef, useEffect, useState, useMemo } from "react";
+import { useRef, useEffect } from "react";
 import Marquee from "@/components/Marquee";
 import FloatingJellyfish from "@/components/FloatingJellyfish";
 import OceanWaves from "@/components/OceanWaves";
 import FloatingParticles from "@/components/FloatingParticles";
 import Footer from "@/components/Footer";
 import FeatureRow from "@/components/FeatureRow";
-import AudienceChips from "@/components/CardyChips";
-
-// Animated counter component
-const AnimatedCounter = (value, suffix = "") => {
-  const [count, setCount] = useState(0);
-  const ref = useRef(null);
-  const isInView = useInView(ref);
-
-  useEffect(() => {
-    if (isInView) {
-      const timer = setInterval(() => {
-        setCount((prev) => {
-          if (prev < value) {
-            return Math.min(prev + Math.ceil(value / 30), value);
-          }
-          return value;
-        });
-      }, 50);
-      return () => clearInterval(timer);
-    }
-  }, [isInView, value]);
-
-  return (
-    <span ref={ref}>
-      {count}
-      {suffix}
-    </span>
-  );
-};
+import CardyChips from "@/components/CardyChips";
 
 export default function LandingPage() {
   const { scrollYProgress } = useScroll();
@@ -631,14 +603,14 @@ export default function LandingPage() {
               Who It's For
             </motion.h2>
 
-            <AudienceChips />
+            <CardyChips theme={theme}/>
           </div>
         </section>
 
         {/* Enhanced Trust Strip */}
         <section className="py-16 px-6">
           <div className="container mx-auto max-w-6xl">
-            <FeatureRow />
+            <FeatureRow theme={theme}/>
 
             <div
               className={`backdrop-blur-xl rounded-xl p-4 overflow-hidden border ${
