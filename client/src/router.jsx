@@ -25,15 +25,6 @@ const router = createBrowserRouter([
           </Suspense>
         ),
       },
-      // Add nested protected chat routes here, e.g.:
-      // {
-      //   path: "thread/:id",
-      //   element: (
-      //     <Suspense fallback={<div>Loading thread...</div>}>
-      //       <ChatThread />
-      //     </Suspense>
-      //   ),
-      // },
     ],
   },
   { path: "*", element: <div style={{ padding: 24 }}>404 - Not Found</div> },
