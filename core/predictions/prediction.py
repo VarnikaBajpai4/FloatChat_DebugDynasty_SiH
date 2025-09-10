@@ -12,16 +12,10 @@ from xgboost import XGBRegressor
 from dotenv import load_dotenv
 
 # --------------------------
-# Load .env and helpers
+# Load .env
 # --------------------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CORE_DIR = os.path.abspath(os.path.join(BASE_DIR, '..'))
-PROJECT_ROOT = os.path.abspath(os.path.join(CORE_DIR, '..'))
-
-# Load env files in this order (non-overriding): core/.env, project/.env, predictions/.env
-load_dotenv(os.path.join(CORE_DIR, '.env'), override=False)
-load_dotenv(os.path.join(PROJECT_ROOT, '.env'), override=False)
-load_dotenv(os.path.join(BASE_DIR, '.env'), override=False)
+# Load from current working directory only. Server runs Python with cwd=core.
+load_dotenv()
 
 def _get(env_name: str) -> str:
     v = os.environ.get(env_name)
@@ -47,11 +41,7 @@ def _get_int_list(env_name: str) -> list[int]:
 # --------------------------
 PG_DSN        = _get("PG_DSN")
 _raw_model_dir = _get("MODEL_DIR")
-if os.path.isabs(_raw_model_dir):
-    MODEL_DIR = _raw_model_dir
-else:
-    # Interpret relative MODEL_DIR with respect to core/ directory (where core/.env lives)
-    MODEL_DIR = os.path.abspath(os.path.join(CORE_DIR, _raw_model_dir))
+MODEL_DIR = _raw_model_dir if os.path.isabs(_raw_model_dir) else os.path.abspath(_raw_model_dir)
 USE_QC        = _get_bool("USE_QC")
 MIN_BACK_DAYS = _get_int("MIN_BACK_DAYS")
 DEPTH_MIN     = _get_int("DEPTH_MIN")

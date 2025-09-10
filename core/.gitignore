@@ -39,7 +39,7 @@ nosetests.xml
 coverage.xml
 *.cover
 *.py,cover
-
+models/
 # PyCharm
 .idea/
 

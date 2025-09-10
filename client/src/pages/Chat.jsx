@@ -53,6 +53,8 @@ export default function Chat() {
   // Mode shown in top tabs and left quick tools
   const [selectedMode, setSelectedMode] = useState("Chat");
   const [modeLocked, setModeLocked] = useState(false); // locked after first send for current chat
+  // Track chats that have been locked by a prediction run (per-conversation lock)
+  const [predLockedChats, setPredLockedChats] = useState({});
 
   const [prompt, setPrompt] = useState("");
   const [conversations, setConversations] = useState([]);
@@ -105,13 +107,14 @@ export default function Chat() {
   const handleNewChat = async () => {
     try {
       setCreating(true);
-      const serverMode = selectedMode === "Chat" ? "Default" : selectedMode;
+      // Always start a brand new chat in Default mode (Chat UI), independent of current selection
+      const serverMode = "Default";
       const res = await fetch(`${API_BASE}/api/chat/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          role: selectedMode === "GeoMap" ? "Default" : role,
+          role: role,
           mode: serverMode,
         }),
       });
@@ -123,8 +126,12 @@ export default function Chat() {
         setActiveId(convo.id);
         setMessages([]);
         // Sync UI mode/role with server
-        const uiMode = convo.mode === "Default" ? "Chat" : convo.mode;
+        const uiMode = "Chat";
         setSelectedMode(uiMode);
+        // Clear any prediction panel state for a fresh chat
+        setPredResult(null);
+        setPredError("");
+        setPredLoading(false);
         setRole(convo.role || role);
         // A new chat hasn't started yet; allow mode switches until first send
         setModeLocked(false);
@@ -330,10 +337,31 @@ export default function Chat() {
     setPredResult(null);
     setPredLoading(true);
     try {
+      // Ensure a conversation exists before running prediction
+      let convId = activeId;
+      if (!convId) {
+        const created = await handleNewChat();
+        convId = created?.id;
+        if (convId) setActiveId(convId);
+        else throw new Error("Failed to create conversation");
+      }
+      // Lock mode selection for this conversation from now on
+      setModeLocked(true);
+
+      // Persist conversation mode to Prediction so switching back restores the Prediction UI
+      try {
+        await fetch(`${API_BASE}/api/chat/${convId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ mode: "Prediction" }),
+        });
+      } catch {}
+
       const singular = { days: "day", weeks: "week", months: "month", years: "year" };
       const unit = Number(predHorizonNum) === 1 ? singular[predHorizonUnit] : predHorizonUnit;
       const horizon = `${Number(predHorizonNum)} ${unit}`;
-
+  
       const payload = {
         variable: predVar,
         horizon,
@@ -341,13 +369,15 @@ export default function Chat() {
         returnHistory: Boolean(predReturnHistory),
         historyDays: Number(predHistoryDays) || 30,
       };
-
+  
       const res = await fetch(`${API_BASE}/api/predictions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify(payload),
       });
+      // Mark this conversation as prediction-locked
+      setPredLockedChats((prev) => ({ ...prev, [convId]: true }));
 
       // Try to parse JSON either in success or error paths
       let data = null;
@@ -381,8 +411,14 @@ export default function Chat() {
 
   // Handlers for mode switch from top or left
   const requestModeChange = (mode) => {
-    if (modeLocked) return; // ignore if locked
+    if (modeLocked || predLoading) return; // block mode change once locked or while running
     setSelectedMode(mode);
+    if (mode !== "Prediction") {
+      // Clear any stale prediction UI/results when leaving Prediction
+      setPredResult(null);
+      setPredError("");
+      setPredLoading(false);
+    }
   };
 
   // Show greeting whenever there's no active chat OR the active chat has zero messages
@@ -494,7 +530,7 @@ export default function Chat() {
               icon={MessageSquare}
               label="Chat"
               active={selectedMode === "Chat"}
-              disabled={modeLocked || (selectedMode === "GeoMap" && geoPendingCoords)}
+              disabled={modeLocked || predLoading || (selectedMode === "GeoMap" && geoPendingCoords)}
               onClick={() => requestModeChange("Chat")}
             />
             <SidebarModeItem
@@ -502,7 +538,7 @@ export default function Chat() {
               icon={Compass}
               label="GeoMap"
               active={selectedMode === "GeoMap"}
-              disabled={modeLocked || (selectedMode === "GeoMap" && geoPendingCoords)}
+              disabled={modeLocked || predLoading || (selectedMode === "GeoMap" && geoPendingCoords)}
               onClick={() => requestModeChange("GeoMap")}
             />
             <SidebarModeItem
@@ -510,7 +546,7 @@ export default function Chat() {
               icon={LineChart}
               label="Prediction"
               active={selectedMode === "Prediction"}
-              disabled={modeLocked || (selectedMode === "GeoMap" && geoPendingCoords)}
+              disabled={modeLocked || predLoading || (selectedMode === "GeoMap" && geoPendingCoords)}
               onClick={() => requestModeChange("Prediction")}
             />
           </div>
@@ -547,7 +583,10 @@ export default function Chat() {
                             onClick={async () => {
                               setActiveId(c.id);
                               setMessages([]);
-                              setModeLocked(false);
+                              // Immediately clear any stale prediction UI until we resolve the chat's actual mode
+                              setPredResult(null);
+                              setPredError("");
+                              setPredLoading(false);
                               try {
                                 // Sync UI from chat meta
                                 const metaRes = await fetch(`${API_BASE}/api/chat/${c.id}`, {
@@ -557,17 +596,25 @@ export default function Chat() {
                                 if (metaData?.success && metaData.conversation) {
                                   const uiMode = metaData.conversation.mode === "Default" ? "Chat" : metaData.conversation.mode;
                                   setSelectedMode(uiMode);
+                                  // When switching to a non-Prediction chat, clear any stale prediction state
+                                  if (uiMode !== "Prediction") {
+                                    setPredResult(null);
+                                    setPredError("");
+                                    setPredLoading(false);
+                                  }
                                   setRole(metaData.conversation.role || ROLES[0]);
                                 }
                                 const res = await fetch(`${API_BASE}/api/chat/${c.id}/messages`, {
                                   credentials: "include",
                                 });
                                 const data = res.ok ? await res.json() : [];
-                                setMessages(Array.isArray(data) ? data : []);
-                                setModeLocked((Array.isArray(data) ? data : []).length > 0);
+                                const msgs = Array.isArray(data) ? data : [];
+                                setMessages(msgs);
+                                const locked = !!predLockedChats[c.id] || msgs.length > 0;
+                                setModeLocked(locked);
                               } catch {
                                 setMessages([]);
-                                setModeLocked(false);
+                                setModeLocked(!!predLockedChats[c.id]);
                               }
                             }}
                             className={cn(
@@ -623,6 +670,12 @@ export default function Chat() {
                                       const data = await res.json();
                                       if (res.ok && data?.success) {
                                         setConversations((prev) => prev.filter((x) => x.id !== c.id));
+                                        // remove any prediction lock tracking for this chat
+                                        setPredLockedChats((prev) => {
+                                          const copy = { ...prev };
+                                          delete copy[c.id];
+                                          return copy;
+                                        });
                                         if (activeId === c.id) {
                                           setActiveId(null);
                                           setMessages([]);
@@ -645,7 +698,10 @@ export default function Chat() {
                             onClick={async () => {
                               setActiveId(c.id);
                               setMessages([]);
-                              setModeLocked(false);
+                              // Immediately clear any stale prediction UI until we resolve the chat's actual mode
+                              setPredResult(null);
+                              setPredError("");
+                              setPredLoading(false);
                               try {
                                 // Sync UI from chat meta
                                 const metaRes = await fetch(`${API_BASE}/api/chat/${c.id}`, {
@@ -655,17 +711,25 @@ export default function Chat() {
                                 if (metaData?.success && metaData.conversation) {
                                   const uiMode = metaData.conversation.mode === "Default" ? "Chat" : metaData.conversation.mode;
                                   setSelectedMode(uiMode);
+                                  // When switching to a non-Prediction chat, clear any stale prediction state
+                                  if (uiMode !== "Prediction") {
+                                    setPredResult(null);
+                                    setPredError("");
+                                    setPredLoading(false);
+                                  }
                                   setRole(metaData.conversation.role || ROLES[0]);
                                 }
                                 const res = await fetch(`${API_BASE}/api/chat/${c.id}/messages`, {
                                   credentials: "include",
                                 });
                                 const data = res.ok ? await res.json() : [];
-                                setMessages(Array.isArray(data) ? data : []);
-                                setModeLocked((Array.isArray(data) ? data : []).length > 0);
+                                const msgs = Array.isArray(data) ? data : [];
+                                setMessages(msgs);
+                                const locked = !!predLockedChats[c.id] || msgs.length > 0;
+                                setModeLocked(locked);
                               } catch {
                                 setMessages([]);
-                                setModeLocked(false);
+                                setModeLocked(!!predLockedChats[c.id]);
                               }
                             }}
                             className="w-full flex items-center justify-center py-2"
@@ -738,7 +802,7 @@ export default function Chat() {
       <div className="flex-1 relative overflow-hidden">
         {/* Mode tabs centered at top */}
         <div className="h-14 flex items-center justify-center px-4">
-          {!modeLocked && !(selectedMode === "GeoMap" && geoPendingCoords) && (
+          {!modeLocked && !predLoading && !(selectedMode === "GeoMap" && geoPendingCoords) && (
             <ModeTabs
               selected={selectedMode}
               onSelect={requestModeChange}
@@ -1322,8 +1386,7 @@ function PredictionPanel({
   const VARS = [
     { key: "temperature", label: "Temperature (\u00B0C)", unit: "\u00B0C" },
     { key: "salinity", label: "Salinity (PSU)", unit: "PSU" },
-    { key: "oxygen", label: "Oxygen (\u00B5mol/kg)", unit: "\u00B5mol/kg" },
-    { key: "chlorophyll", label: "Chlorophyll (mg/m\u00B3)", unit: "mg/m\u00B3" },
+    { key: "pressure", label: "Pressure (dbar)", unit: "dbar" },
   ];
   const UNITS = ["days", "weeks", "months", "years"];
   const selectedVar = VARS.find((v) => v.key === predVar) || VARS[0];
@@ -1601,7 +1664,7 @@ function PredictionPanel({
                     downloadCSV(
                       predictionsData.map((p) => ({
                         date: p.date,
-                        predicted: p.predicted,
+                        predicted: p.pred,
                       })),
                       ["date", "predicted"],
                       "predictions.csv"
@@ -1633,7 +1696,7 @@ function PredictionPanel({
                           <tr key={i} className="text-slate-800">
                             <td className="px-3 py-1.5 border-b border-slate-100">{p.date}</td>
                             <td className="px-3 py-1.5 border-b border-slate-100 text-right">
-                              {typeof p.predicted === "number" ? p.predicted.toFixed(3) : p.predicted}
+                              {typeof p.pred === "number" ? p.pred.toFixed(3) : p.pred}
                             </td>
                           </tr>
                         ))}
@@ -1692,7 +1755,7 @@ function LineChartPrediction({ history, predictions, height = 280, unit }) {
   // Parse to Date objects
   const parse = (d) => new Date(d);
   const h = Array.isArray(history) ? history.map((x) => ({ x: parse(x.date), y: Number(x.value) })) : [];
-  const p = Array.isArray(predictions) ? predictions.map((x) => ({ x: parse(x.date), y: Number(x.predicted) })) : [];
+  const p = Array.isArray(predictions) ? predictions.map((x) => ({ x: parse(x.date), y: Number(x.pred) })) : [];
 
   const all = [...h, ...p];
   if (all.length === 0) {

@@ -2,11 +2,9 @@ const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
 
-// Ensure server/.env is loaded regardless of process.cwd()
+// Load .env from default location (process.cwd())
 try {
-  const dotenv = require('dotenv');
-  const envPath = path.resolve(__dirname, '../../.env');
-  dotenv.config({ path: envPath });
+  require('dotenv').config();
 } catch {}
 
 const ALLOWED_VARIABLES = new Set(['temperature', 'salinity', 'pressure']);
@@ -81,7 +79,7 @@ function runPython(pythonBin, args, { cwd, timeoutMs }) {
 /**
  * POST /api/predictions
  * Body: {
- *   variable: "temperature" | "salinity" | "oxygen" | "chlorophyll", (required)
+ *   variable: "temperature" | "salinity" | "pressure", (required)
  *   horizon: "5 days" | "2 weeks" | "3 months" | "1 year",            (required)
  *   sinceDays?: number (default 1095),
  *   returnHistory?: boolean (default true),
@@ -119,7 +117,8 @@ module.exports = async function runPrediction(req, res) {
     const retHist = Boolean(returnHistory);
 
     const ROOT = path.resolve(__dirname, '../../../');
-    const scriptPath = path.resolve(ROOT, 'core/predictions/prediction.py');
+    const CORE_DIR = path.resolve(ROOT, 'core');
+    const scriptPath = 'predictions/prediction.py';
 
     const args = [
       scriptPath,
@@ -133,7 +132,7 @@ module.exports = async function runPrediction(req, res) {
 
     const timeoutMs = Number(process.env.PREDICT_TIMEOUT_MS || 60000);
     const pythonBin = pickPythonBin(ROOT);
-    const { code, stdout, stderr } = await runPython(pythonBin, args, { cwd: ROOT, timeoutMs });
+    const { code, stdout, stderr } = await runPython(pythonBin, args, { cwd: CORE_DIR, timeoutMs });
 
     // If Python errored hard and printed nothing useful
     if (code !== 0 && !stdout) {
