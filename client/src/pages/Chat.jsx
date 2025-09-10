@@ -104,10 +104,11 @@ export default function Chat() {
     fetchConversations();
   }, []);
 
-  const handleNewChat = async () => {
+  const handleNewChat = async (opts = {}) => {
+    const { uiMode = "Chat", resetPrediction = true } = opts;
     try {
       setCreating(true);
-      // Always start a brand new chat in Default mode (Chat UI), independent of current selection
+      // Always start a brand new chat in Default mode (server-side), UI mode can be overridden by caller
       const serverMode = "Default";
       const res = await fetch(`${API_BASE}/api/chat/start`, {
         method: "POST",
@@ -125,13 +126,14 @@ export default function Chat() {
         setConversations((prev) => [convo, ...prev]);
         setActiveId(convo.id);
         setMessages([]);
-        // Sync UI mode/role with server
-        const uiMode = "Chat";
+        // Sync UI mode/role according to caller preference
         setSelectedMode(uiMode);
-        // Clear any prediction panel state for a fresh chat
-        setPredResult(null);
-        setPredError("");
-        setPredLoading(false);
+        // Optionally clear any prediction panel state for a fresh chat
+        if (resetPrediction) {
+          setPredResult(null);
+          setPredError("");
+          setPredLoading(false);
+        }
         setRole(convo.role || role);
         // A new chat hasn't started yet; allow mode switches until first send
         setModeLocked(false);
@@ -265,6 +267,32 @@ export default function Chat() {
             try {
               const payload = JSON.parse(dataStr);
               finalAssistantId = payload?.messageId || null;
+
+              // capture qc + link metadata for UI footer
+              const rawLink = Array.isArray(payload?.link)
+                ? payload.link[0]
+                : (payload?.link || payload?.visualization_url || null);
+              // Only persist QC when backend provides it explicitly; avoid defaulting to 1
+              const qcVal = typeof payload?.qc === "number" ? payload.qc : null;
+
+              setMessages((prev) => {
+                const updated = [...prev];
+                for (let i = updated.length - 1; i >= 0; i--) {
+                  if (updated[i].role === "assistant") {
+                    updated[i] = {
+                      ...updated[i],
+                      metadata: {
+                        ...(updated[i].metadata || {}),
+                        link: rawLink,
+                        qc: qcVal,
+                        final: true, // mark this assistant message as the final summary
+                      },
+                    };
+                    break;
+                  }
+                }
+                return updated;
+              });
             } catch {}
           }
         }
@@ -326,9 +354,10 @@ export default function Chat() {
       }
     } catch {}
 
+    // Clear input immediately for better UX
+    setPrompt("");
     await sendProgrammaticMessage(finalMessage);
     setGeoPendingCoords(null);
-    setPrompt("");
   };
 
   // Run prediction via backend API
@@ -337,14 +366,18 @@ export default function Chat() {
     setPredResult(null);
     setPredLoading(true);
     try {
+      // Always keep UI in Prediction during the run
+      setSelectedMode("Prediction");
+
       // Ensure a conversation exists before running prediction
       let convId = activeId;
       if (!convId) {
-        const created = await handleNewChat();
+        const created = await handleNewChat({ uiMode: "Prediction", resetPrediction: false });
         convId = created?.id;
         if (convId) setActiveId(convId);
         else throw new Error("Failed to create conversation");
       }
+
       // Lock mode selection for this conversation from now on
       setModeLocked(true);
 
@@ -919,7 +952,7 @@ export default function Chat() {
                 {/* Role dropdown placed at left side of input bar */}
                 {modeLocked ? (
                   // spacer to keep text from hugging left edge once role selector disappears
-                  <div className="w-28 sm:w-32" aria-hidden="true" />
+                  <div className="w-28 sm:w-2" aria-hidden="true" />
                 ) : (
                   <RoleDropdown role={role} setRole={setRole} />
                 )}
@@ -1105,40 +1138,165 @@ function MessageList({ messages, isStreaming }) {
     return idx;
   })();
 
+  // whether to show the "Thinking..." indicator (before tokens arrive)
+  const showThinking = (() => {
+    if (!isStreaming) return false;
+    if (lastAssistantIndex < 0) return true;
+    const lastAssistant = messages[lastAssistantIndex];
+    const content = (lastAssistant?.content || "").trim();
+    return content.length === 0;
+  })();
+
+  // Inline ThinkingIndicator (click to expand "sub-steps")
+  function ThinkingIndicator() {
+    const [open, setOpen] = useState(false);
+    const steps = [
+      "Understanding your query",
+      "Routing to MCP/Tools",
+      "Calling LLM",
+      "Building SQL query",
+      "Aggregating results",
+      "Generating summary & QC",
+    ];
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="flex w-full px-1 sm:px-2 py-1.5 justify-start"
+      >
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="text-left px-4 py-2 rounded-2xl bg-white/95 border border-[#06B6D4]/30 shadow-sm text-slate-800 hover:bg-white w-[85%]"
+        >
+          <div className="flex items-center gap-2">
+            <Sparkles className="size-4 text-[#0EA5E9] animate-pulse" />
+            <span className="font-medium">Thinking…</span>
+            <span className="ml-2 inline-flex">
+              <span
+                className="w-1.5 h-1.5 bg-[#06B6D4] rounded-full mr-1 animate-bounce"
+                style={{ animationDelay: "0ms" }}
+              />
+              <span
+                className="w-1.5 h-1.5 bg-[#06B6D4] rounded-full mr-1 animate-bounce"
+                style={{ animationDelay: "100ms" }}
+              />
+              <span
+                className="w-1.5 h-1.5 bg-[#06B6D4] rounded-full animate-bounce"
+                style={{ animationDelay: "200ms" }}
+              />
+            </span>
+            <ChevronDown
+              className={cn(
+                "size-4 ml-auto transition-transform",
+                open ? "rotate-180" : ""
+              )}
+            />
+          </div>
+          <AnimatePresence>
+            {open && (
+              <motion.ul
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="mt-2 pl-1 text-sm text-slate-600 space-y-1 overflow-hidden"
+              >
+                {steps.map((s, i) => (
+                  <li key={i} className="flex items-center gap-2">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#0EA5E9]" />
+                    <span>{s}</span>
+                  </li>
+                ))}
+              </motion.ul>
+            )}
+          </AnimatePresence>
+        </button>
+      </motion.div>
+    );
+  }
+
+  const renderMeta = (m) => {
+    // Only show meta for the final summary output
+    const isFinal = m?.metadata?.final === true;
+    if (!isFinal) return null;
+
+    const qc =
+      typeof m?.metadata?.qc === "number" ? m.metadata.qc : null;
+    let link = m?.metadata?.link || null;
+    if (Array.isArray(link)) link = link[0];
+    const isValidUrl = (u) => typeof u === "string" && /^https?:\/\//i.test(u);
+
+    // Only show QC when final output has a valid link (i.e., final summary with link)
+    const showLink = link && isValidUrl(link);
+    const showQC = isFinal && showLink && typeof qc === "number";
+
+    if (!showQC && !showLink) return null;
+
+    return (
+      <div className="mt-2 flex items-center gap-3 text-xs">
+        {showQC && (
+          <span className="inline-block px-2 py-0.5 rounded-full bg-[#06B6D4]/15 text-[#0EA5E9] border border-[#06B6D4]/30">
+            QC: {qc}
+          </span>
+        )}
+        {showLink && (
+          <a
+            href={link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#0EA5E9]/10 text-[#0284C7] border border-[#0EA5E9]/30 hover:bg-[#0EA5E9]/20"
+          >
+            Open link
+          </a>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div ref={listRef} className="w-full h-full">
       <div className="max-w-3xl mx-auto">
         {messages.map((m, idx) => {
           const isUser = m.role === "user";
           const isLastAssistant = idx === lastAssistantIndex;
+          const assistantEmpty = !isUser && ((m.content || "").trim().length === 0);
+
           return (
-            <motion.div
-              key={m.id || m._id || idx}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className={cn(
-                "flex w-full px-1 sm:px-2 py-1.5",
-                isUser ? "justify-end" : "justify-start"
-              )}
-            >
-              <div
+            <React.Fragment key={m.id || m._id || idx}>
+              {/* Beautiful 'thinking' indicator before assistant bubble while waiting */}
+              {!isUser && isLastAssistant && showThinking && assistantEmpty && <ThinkingIndicator />}
+
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
                 className={cn(
-                  "px-4 py-2 rounded-2xl shadow-sm",
-                  isUser
-                    ? "bg-gradient-to-r from-[#06B6D4] to-[#0EA5E9] text-white"
-                    : "bg-white/95 border border-[#06B6D4]/20 text-slate-800"
+                  "flex w-full px-1 sm:px-2 py-1.5",
+                  isUser ? "justify-end" : "justify-start"
                 )}
-                style={{ maxWidth: "85%" }}
               >
-                <div className="whitespace-pre-wrap break-words leading-relaxed">
-                  {m.content || ""}
-                  {isLastAssistant && isStreaming && (
-                    <span className="inline-block w-[6px] h-[1em] bg-slate-400/80 ml-1 align-[-0.15em] animate-pulse rounded-sm" />
+                <div
+                  className={cn(
+                    "px-4 py-2 rounded-2xl shadow-sm",
+                    isUser
+                      ? "bg-gradient-to-r from-[#06B6D4] to-[#0EA5E9] text-white"
+                      : "bg-white/95 border border-[#06B6D4]/20 text-slate-800"
                   )}
+                  style={{ maxWidth: "85%" }}
+                >
+                  <div className="whitespace-pre-wrap break-words leading-relaxed">
+                    {m.content || ""}
+                    {isLastAssistant && isStreaming && (
+                      <span className="inline-block w-[6px] h-[1em] bg-slate-400/80 ml-1 align-[-0.15em] animate-pulse rounded-sm" />
+                    )}
+                  </div>
+                  {/* Assistant metadata footer: QC + clickable link */}
+                  {!isUser && renderMeta(m)}
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
+            </React.Fragment>
           );
         })}
       </div>
