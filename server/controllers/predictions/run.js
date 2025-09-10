@@ -2,7 +2,14 @@ const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
 
-const ALLOWED_VARIABLES = new Set(['temperature', 'salinity', 'oxygen', 'chlorophyll']);
+// Ensure server/.env is loaded regardless of process.cwd()
+try {
+  const dotenv = require('dotenv');
+  const envPath = path.resolve(__dirname, '../../.env');
+  dotenv.config({ path: envPath });
+} catch {}
+
+const ALLOWED_VARIABLES = new Set(['temperature', 'salinity', 'pressure']);
 
 function pickPythonBin(rootDir) {
   const envBin = (process.env.PYTHON_BIN || '').trim();
@@ -95,7 +102,7 @@ module.exports = async function runPrediction(req, res) {
     if (!v || !ALLOWED_VARIABLES.has(v)) {
       return res.status(400).json({
         success: false,
-        error: "Invalid 'variable'. Use one of: temperature, salinity, oxygen, chlorophyll",
+        error: "Invalid 'variable'. Use one of: temperature, salinity, pressure",
       });
     }
 
