@@ -1,7 +1,7 @@
 # file: time_series_compare_api.py
 from pydantic import BaseModel
 from typing import Optional, Literal
-from timeseries_compare_plot import create_compare_time_series_plot
+from .timeseries_compare_plot import create_compare_time_series_plot
 
 class CompareTimeSeriesPayload(BaseModel):
     """

@@ -1,7 +1,7 @@
 # file: map_points_api.py
 from pydantic import BaseModel
 from typing import Optional, Literal
-from map_points_plot import create_map_points_plot  # same-dir import, mirrors time_series_api.py style
+from .map_points_plot import create_map_points_plot  # same-dir import, mirrors time_series_api.py style
 
 
 class MapPointsPayload(BaseModel):

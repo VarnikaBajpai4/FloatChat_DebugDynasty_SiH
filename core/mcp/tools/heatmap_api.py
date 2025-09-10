@@ -1,7 +1,7 @@
 # file: heatmap_api.py
 from pydantic import BaseModel
 from typing import Optional, Literal
-from heatmap_plot import create_heatmap_plot  # same-dir import, mirrors time_series_api.py style
+from .heatmap_plot import create_heatmap_plot  # same-dir import, mirrors time_series_api.py style
 
 class HeatmapPayload(BaseModel):
     """
