@@ -9,7 +9,7 @@ from openai import OpenAI
 import os
 
 from models import QueryRequest, QueryResponse
-from constants import ORCHESTRATION_PROMPT, SQL_PROMPT, SYSTEM_PROMPT, GATEKEEPER_PROMPT
+from constants import ORCHESTRATION_PROMPT, SQL_PROMPT, SYSTEM_PROMPT, GATEKEEPER_PROMPT, SUMMARY_PROMPT
 
 import asyncio
 from mcp_calls import generate_time_series_plot, run_query, fetch_schema
@@ -122,25 +122,41 @@ async def query_endpoint(payload: QueryRequest):
     #the model is hallucinating af. leaving it be for now
     #continue the chain to get the final response
     #next, we need to pass it to the mcp server to generate the visualization from the result of the sql query
+    plot_url = ""
     if visualization_name == "timeseries_line":
         params = {"structuredContent": query_results.structured_content}
         result = await generate_time_series_plot(params)
         print("Time series generation result:", result)
         #return the plot url
         plot_url = result.structured_content["plot_url"]
-        return {
-            "text": f"Here is your time series plot: {plot_url}",
-            "links": plot_url,
-            "QC": {
-                "number": 0,
-                "variable": "N/A"
-            }
-        }
-    
+
+    #all the data has been received, now we need to make one final call to the llm to generate the final summary
+    messages =[
+        {"role": "system", "content": SYSTEM_PROMPT},
+        *[{"role": msg.role, "content": msg.content} for msg in payload.history],
+        {"role": "system", "content": f"Here is visualization data: {json.dumps(orchestration_decision)}"},
+        {"role": "system", "content": f"Here is the SQL query: {query}"},
+        {"role": "user", "content": payload.message},
+        {"role": "system", "content": f"Here is the database schema: {schema_content_json}"},
+        {"role": "system", "content": SUMMARY_PROMPT},
+        {"role": "system", "content": f"The role of the user to which you are responding is: {payload.role}"},
+    ]
+    response = llm_client.chat.completions.create(
+        model=os.getenv("MODEL_NAME"),
+        messages=messages,
+        temperature=0.2,
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0,
+        stop=None
+    )
+    print("Final summary response:", response.choices[0].message.content)
+    summary_data = json.loads(response.choices[0].message.content)
+    text = summary_data["summary"]
     return {
-        "text": "Your query has been accepted and is being processed.",
-        "links": None,
-        "QC": None
+        "text": text,
+        "links": plot_url,
+        "QC": 1
     }
 
 from fastapi.staticfiles import StaticFiles
