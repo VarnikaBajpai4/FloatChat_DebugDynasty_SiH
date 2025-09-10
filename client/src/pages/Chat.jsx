@@ -1564,6 +1564,11 @@ function PredictionPanel({
     : [];
 
   const meta = predResult?.meta || {};
+  // Minimal display-only split conformal confidence (if backend provided)
+  const conf =
+    typeof meta?.conformal?.confidence === "number"
+      ? meta.conformal.confidence
+      : null;
 
   const runDisabled = predLoading || !predVar || !predHorizonNum || !predHorizonUnit;
 
@@ -1773,6 +1778,13 @@ function PredictionPanel({
                   value={meta?.rowsFetched ?? "-"}
                   subtitle="Interpolated daily"
                 />
+                {typeof conf === "number" && (
+                  <SummaryTile
+                    label="Confidence"
+                    value={`${(conf * 100).toFixed(1)}%`}
+                    subtitle="Split conformal"
+                  />
+                )}
               </div>
 
               {/* Chart */}
