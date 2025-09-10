@@ -52,8 +52,20 @@ def create_compare_time_series_plot(
     sample = records[0]
     keys = list(sample.keys())
 
-    t_key = time_key or next((k for k in keys if "time" in k.lower()), None)
-    v_key = value_key or next((k for k in keys if k.lower() in ["temp", "temperature", "pres", "pressure"]), None)
+    t_key = time_key or next(
+        (
+            k
+            for k in keys
+            if any(
+                kw in k.lower()
+                for kw in [
+                    "time", "datetime", "date", "timestamp", "hour", "minute", "second", "day"
+                ]
+            )
+        ),
+        None
+    )
+    v_key = value_key or next((k for k in keys if k.lower() in ["avg_temp", "TEMP", "temp", "temperature", "TEMP_C", "temp_c", "temperature_c","PSAL", "psal", "salinity", "sal", "SAL", "sal_psu", "salinity_psu", "PRES", "pres", "pressure", "pressure_dbar", "depth", "depth_m", "Depth"]), None)
     f_key = float_id_key or next((k for k in keys if k.lower() in ["wmo", "float_id", "id"]), None)
 
     if not t_key or not v_key or not f_key:
