@@ -2,6 +2,7 @@
 
 from fastapi import FastAPI
 import json
+import re
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -14,6 +15,42 @@ from constants import ORCHESTRATION_PROMPT, SQL_PROMPT, SYSTEM_PROMPT, GATEKEEPE
 import asyncio
 from mcp_calls import generate_time_series_plot,generate_time_series_compare_plot,generate_map_points_plot, generate_heatmap_plot, run_query, fetch_schema
 app = FastAPI()
+
+def strip_code_fences(text: str) -> str:
+    """
+    Remove Markdown code fences from a string if present.
+
+    Handles:
+    - ```json\n{...}\n```
+    - ```\n{...}\n```
+    - ```{...}```
+    - Single backtick wrapping: `{...}`
+
+    Returns the inner content trimmed; returns input unchanged if no fences found.
+    """
+    if not isinstance(text, str):
+        return text
+    s = text.strip()
+
+    # Handle fenced code blocks like ```json\n{...}\n```
+    if s.startswith("```"):
+        # Remove opening fence with optional language hint, with optional newline
+        m = re.match(r"^```[a-zA-Z0-9_-]*\s*\n?", s, flags=re.IGNORECASE)
+        if m:
+            s = s[m.end():]
+        else:
+            # Fallback: drop the first three backticks
+            s = s[3:]
+        # Remove trailing closing fence if present
+        if s.endswith("```"):
+            s = s[:-3]
+        s = s.strip()
+
+    # In case single backticks were used around the whole payload
+    if s.startswith("`") and s.endswith("`") and len(s) >= 2:
+        s = s[1:-1].strip()
+
+    return s
 
 llm_client = OpenAI(
     base_url = "https://openrouter.ai/api/v1",
@@ -43,7 +80,7 @@ async def query_endpoint(payload: QueryRequest):
         stop=None
     )
     print("Gatekeeper response:", response.choices[0].message.content)
-    parsed_response = json.loads(response.choices[0].message.content)
+    parsed_response = json.loads(strip_code_fences(response.choices[0].message.content))
     
     if parsed_response["label"] != "proceed":
         return {
@@ -83,7 +120,7 @@ async def query_endpoint(payload: QueryRequest):
         presence_penalty=0,
         stop=None
     )
-    orchestration_decision = json.loads(response.choices[0].message.content)
+    orchestration_decision = json.loads(strip_code_fences(response.choices[0].message.content))
     print("Orchestration decision:", orchestration_decision)
     if orchestration_decision.get("missing_detail") != '':
         return {
@@ -113,7 +150,7 @@ async def query_endpoint(payload: QueryRequest):
         stop=None
     )
     print("SQL generation response:", response.choices[0].message.content)
-    sql_query_data = json.loads(response.choices[0].message.content)
+    sql_query_data = json.loads(strip_code_fences(response.choices[0].message.content))
     print("Generated SQL query:", sql_query_data)
     query= sql_query_data["visualizations"][0]["sql"]
     #now, we have the sql queries. we need to run them on the MCP server
@@ -168,7 +205,7 @@ async def query_endpoint(payload: QueryRequest):
         stop=None
     )
     print("Final summary response:", response.choices[0].message.content)
-    summary_data = json.loads(response.choices[0].message.content)
+    summary_data = json.loads(strip_code_fences(response.choices[0].message.content))
     text = summary_data["summary"]
     return {
         "text": text,

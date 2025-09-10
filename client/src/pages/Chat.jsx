@@ -76,6 +76,25 @@ export default function Chat() {
   const [predLoading, setPredLoading] = useState(false);
   const [predError, setPredError] = useState("");
   const [predResult, setPredResult] = useState(null);
+  // Persist message meta (link, qc) locally so they survive reloads/tab switches
+  const saveMsgMeta = (id, meta) => {
+    try {
+      if (!id) return;
+      const key = `msgmeta:${id}`;
+      const prev = JSON.parse(localStorage.getItem(key) || "{}");
+      localStorage.setItem(key, JSON.stringify({ ...prev, ...meta }));
+    } catch {}
+  };
+  const readMsgMeta = (id) => {
+    try {
+      if (!id) return null;
+      const s = localStorage.getItem(`msgmeta:${id}`);
+      return s ? JSON.parse(s) : null;
+    } catch {
+      return null;
+    }
+  };
+
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good morning";
@@ -229,9 +248,15 @@ export default function Chat() {
           const updated = [...prev];
           for (let i = updated.length - 1; i >= 0; i--) {
             if (updated[i].role === "assistant") {
+              const prevContent = updated[i].content || "";
+              const needSpace =
+                prevContent.length > 0 &&
+                !/\s$/.test(prevContent) &&   // previous does not end with space
+                !/^\s/.test(chunk) &&         // chunk does not start with space
+                !/^[\.\,\!\?\:\;\)\]\}]/.test(chunk); // chunk does not start with punctuation
               updated[i] = {
                 ...updated[i],
-                content: (updated[i].content || "") + chunk,
+                content: prevContent + (needSpace ? " " : "") + chunk,
               };
               break;
             }
@@ -261,7 +286,7 @@ export default function Chat() {
             try {
               const payload = JSON.parse(dataStr);
               const token = payload?.content ?? "";
-              appendToAssistant(token + " ");
+              appendToAssistant(token);
             } catch {}
           } else if (event === "done") {
             try {
@@ -272,21 +297,52 @@ export default function Chat() {
               const rawLink = Array.isArray(payload?.link)
                 ? payload.link[0]
                 : (payload?.link || payload?.visualization_url || null);
-              // Only persist QC when backend provides it explicitly; avoid defaulting to 1
+
+              // Normalize link to absolute URL so it persists across re-renders
+              const normalizeLink = (u) => {
+                if (!u) return null;
+                let s = Array.isArray(u) ? u[0] : u;
+                if (typeof s !== "string") return null;
+                if (/^https?:\/\//i.test(s)) return s;
+                if (s.startsWith("/")) {
+                  const base = API_BASE || window.location.origin;
+                  return base + s;
+                }
+                try {
+                  return new URL(s, API_BASE || window.location.origin).toString();
+                } catch {
+                  return null;
+                }
+              };
+
+              const normalized = normalizeLink(rawLink);
+              // Only persist QC when backend provides it explicitly
               const qcVal = typeof payload?.qc === "number" ? payload.qc : null;
+
+              // Save to local cache so link/QC survive reloads and tab switches
+              try {
+                if (finalAssistantId && (normalized || typeof qcVal === "number")) {
+                  saveMsgMeta(finalAssistantId, { link: normalized || null, qc: qcVal });
+                }
+              } catch {}
 
               setMessages((prev) => {
                 const updated = [...prev];
                 for (let i = updated.length - 1; i >= 0; i--) {
                   if (updated[i].role === "assistant") {
+                    const qcTop = typeof qcVal === "number" ? qcVal : undefined;
                     updated[i] = {
                       ...updated[i],
                       metadata: {
                         ...(updated[i].metadata || {}),
-                        link: rawLink,
+                        link: normalized,
                         qc: qcVal,
                         final: true, // mark this assistant message as the final summary
                       },
+                      // Also set top-level fields for compatibility with persisted message shapes
+                      link: normalized ?? updated[i].link,
+                      visualization_url: normalized ?? updated[i].visualization_url,
+                      qc: qcTop ?? updated[i].qc,
                     };
                     break;
                   }
@@ -437,9 +493,9 @@ export default function Chat() {
     }
   };
   const suggestions = [
+    "Location of all floats in indian ocean",
+    "Create a heatmap comparing the temperature of the indian ocean",
     "Nearest floats to 12.9N, 74.8E",
-    "Plot salinity in Mar 2023",
-    "Compare BGC in Arabian Sea (6m)",
   ];
 
   // Handlers for mode switch from top or left
@@ -454,9 +510,9 @@ export default function Chat() {
     }
   };
 
-  // Show greeting whenever there's no active chat OR the active chat has zero messages
-  const showGreeting = !activeId || (messages && messages.length === 0);
-
+    // Show greeting whenever there's no active chat OR the active chat has zero messages
+    const showGreeting = ((messages?.length || 0) === 0) && !sending;
+  
   return (
     <div
       className={cn(
@@ -641,8 +697,74 @@ export default function Chat() {
                                   credentials: "include",
                                 });
                                 const data = res.ok ? await res.json() : [];
+                                const normalizeLink = (u) => {
+                                  if (!u) return null;
+                                  let s = Array.isArray(u) ? u[0] : u;
+                                  if (typeof s !== "string") return null;
+                                  if (/^https?:\/\//i.test(s)) return s;
+                                  if (s.startsWith("/")) {
+                                    const base = API_BASE || window.location.origin;
+                                    return base + s;
+                                  }
+                                  try {
+                                    return new URL(s, API_BASE || window.location.origin).toString();
+                                  } catch {
+                                    return null;
+                                  }
+                                };
+                                const extractLinkFromContent = (txt) => {
+                                  if (!txt || typeof txt !== "string") return null;
+                                  const http = txt.match(/https?:\/\/[^\s)]+/i);
+                                  if (http) return http[0];
+                                  const rel = txt.match(/(^|[\s(])(\/[A-Za-z0-9\-._~%/?#@!$&'()*+,;=]+)/);
+                                  if (rel) return (rel[2] || rel[1] || "").trim();
+                                  return null;
+                                };
                                 const msgs = Array.isArray(data) ? data : [];
-                                setMessages(msgs);
+                                const normMsgs = msgs.map((m) => {
+  if (m?.role !== "assistant") return m;
+
+  // Read any previously cached meta for this message id
+  const cache = readMsgMeta(m?.id || m?._id);
+
+  // Prefer metadata/link fields, then cached link, then attempt to find a URL in content
+  const rawCandidate =
+    m?.metadata?.link ??
+    m?.link ??
+    m?.visualization_url ??
+    cache?.link ??
+    (typeof extractLinkFromContent === "function" ? extractLinkFromContent(m?.content) : null) ??
+    null;
+
+  const normalized = typeof normalizeLink === "function" ? normalizeLink(rawCandidate) : rawCandidate;
+
+  // Merge QC from metadata, top-level, or cache
+  const qcMerged = (m?.metadata?.qc ?? m?.qc ?? cache?.qc);
+  const qcVal = typeof qcMerged === "number" ? qcMerged : null;
+
+  // Persist normalized link/QC so they survive reloads and tab switches
+  try {
+    if (m?.id || m?._id) {
+      const persist = {};
+      if (normalized) persist.link = normalized;
+      if (typeof qcVal === "number") persist.qc = qcVal;
+      if (Object.keys(persist).length) saveMsgMeta(m.id || m._id, persist);
+    }
+  } catch {}
+
+  return {
+    ...m,
+    metadata: {
+      ...(m.metadata || {}),
+      link: normalized ?? (m.metadata?.link ?? null),
+      qc: qcVal,
+    },
+    link: normalized ?? m.link ?? m.visualization_url ?? undefined,
+    visualization_url: normalized ?? m.visualization_url ?? undefined,
+    qc: typeof qcVal === "number" ? qcVal : m.qc,
+  };
+});
+setMessages(normMsgs);
                                 const locked = !!predLockedChats[c.id] || msgs.length > 0;
                                 setModeLocked(locked);
                               } catch {
@@ -756,8 +878,74 @@ export default function Chat() {
                                   credentials: "include",
                                 });
                                 const data = res.ok ? await res.json() : [];
+                                const normalizeLink = (u) => {
+                                  if (!u) return null;
+                                  let s = Array.isArray(u) ? u[0] : u;
+                                  if (typeof s !== "string") return null;
+                                  if (/^https?:\/\//i.test(s)) return s;
+                                  if (s.startsWith("/")) {
+                                    const base = API_BASE || window.location.origin;
+                                    return base + s;
+                                  }
+                                  try {
+                                    return new URL(s, API_BASE || window.location.origin).toString();
+                                  } catch {
+                                    return null;
+                                  }
+                                };
+                                const extractLinkFromContent = (txt) => {
+                                  if (!txt || typeof txt !== "string") return null;
+                                  const http = txt.match(/https?:\/\/[^\s)]+/i);
+                                  if (http) return http[0];
+                                  const rel = txt.match(/(^|[\s(])(\/[A-Za-z0-9\-._~%/?#@!$&'()*+,;=]+)/);
+                                  if (rel) return (rel[2] || rel[1] || "").trim();
+                                  return null;
+                                };
                                 const msgs = Array.isArray(data) ? data : [];
-                                setMessages(msgs);
+                                const normMsgs = msgs.map((m) => {
+  if (m?.role !== "assistant") return m;
+
+  // Read any previously cached meta for this message id
+  const cache = readMsgMeta(m?.id || m?._id);
+
+  // Prefer metadata/link fields, then cached link, then attempt to find a URL in content
+  const rawCandidate =
+    m?.metadata?.link ??
+    m?.link ??
+    m?.visualization_url ??
+    cache?.link ??
+    (typeof extractLinkFromContent === "function" ? extractLinkFromContent(m?.content) : null) ??
+    null;
+
+  const normalized = typeof normalizeLink === "function" ? normalizeLink(rawCandidate) : rawCandidate;
+
+  // Merge QC from metadata, top-level, or cache
+  const qcMerged = (m?.metadata?.qc ?? m?.qc ?? cache?.qc);
+  const qcVal = typeof qcMerged === "number" ? qcMerged : null;
+
+  // Persist normalized link/QC so they survive reloads and tab switches
+  try {
+    if (m?.id || m?._id) {
+      const persist = {};
+      if (normalized) persist.link = normalized;
+      if (typeof qcVal === "number") persist.qc = qcVal;
+      if (Object.keys(persist).length) saveMsgMeta(m.id || m._id, persist);
+    }
+  } catch {}
+
+  return {
+    ...m,
+    metadata: {
+      ...(m.metadata || {}),
+      link: normalized ?? (m.metadata?.link ?? null),
+      qc: qcVal,
+    },
+    link: normalized ?? m.link ?? m.visualization_url ?? undefined,
+    visualization_url: normalized ?? m.visualization_url ?? undefined,
+    qc: typeof qcVal === "number" ? qcVal : m.qc,
+  };
+});
+setMessages(normMsgs);
                                 const locked = !!predLockedChats[c.id] || msgs.length > 0;
                                 setModeLocked(locked);
                               } catch {
@@ -1123,11 +1311,11 @@ function MessageList({ messages, isStreaming }) {
   const listRef = useRef(null);
 
   useEffect(() => {
-    // Auto-scroll to bottom when messages change
+    // Auto-scroll to bottom when messages change or streaming ends
     const el = listRef.current;
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isStreaming]);
 
   // find last assistant index for streaming caret
   const lastAssistantIndex = (() => {
@@ -1218,19 +1406,54 @@ function MessageList({ messages, isStreaming }) {
   }
 
   const renderMeta = (m) => {
-    // Only show meta for the final summary output
-    const isFinal = m?.metadata?.final === true;
-    if (!isFinal) return null;
+    const qc = typeof m?.metadata?.qc === "number" ? m.metadata.qc : null;
 
-    const qc =
-      typeof m?.metadata?.qc === "number" ? m.metadata.qc : null;
-    let link = m?.metadata?.link || null;
-    if (Array.isArray(link)) link = link[0];
-    const isValidUrl = (u) => typeof u === "string" && /^https?:\/\//i.test(u);
+    const normalizeLink = (u) => {
+      if (!u) return null;
+      let s = Array.isArray(u) ? u[0] : u;
+      if (typeof s !== "string") return null;
+      if (/^https?:\/\//i.test(s)) return s;
+      if (s.startsWith("/")) {
+        const base = API_BASE || window.location.origin;
+        return base + s;
+      }
+      try {
+        return new URL(s, API_BASE || window.location.origin).toString();
+      } catch {
+        return null;
+      }
+    };
+    const extractLinkFromContent = (txt) => {
+      if (!txt || typeof txt !== "string") return null;
+      const http = txt.match(/https?:\/\/[^\s)]+/i);
+      if (http) return http[0];
+      const rel = txt.match(/(^|[\s(])(\/[A-Za-z0-9\-._~%/?#@!$&'()*+,;=]+)/);
+      if (rel) return (rel[2] || rel[1] || "").trim();
+      return null;
+    };
 
-    // Only show QC when final output has a valid link (i.e., final summary with link)
-    const showLink = link && isValidUrl(link);
-    const showQC = isFinal && showLink && typeof qc === "number";
+    const rawCandidate =
+      m?.metadata?.link ??
+      m?.link ??
+      m?.visualization_url ??
+      extractLinkFromContent(m?.content) ??
+      null;
+
+    let linkStr = normalizeLink(rawCandidate);
+    if (!linkStr) {
+      try {
+        const id = m?.id || m?._id;
+        const cached = id ? JSON.parse(localStorage.getItem(`msgmeta:${id}`) || "null") : null;
+        if (cached?.link) {
+          const l2 = normalizeLink(cached.link);
+          if (l2) linkStr = l2;
+        }
+      } catch {}
+    }
+    const showLink = !!linkStr;
+
+    // QC shows whenever available; link shows whenever available
+    const showQC = typeof qc === "number";
 
     if (!showQC && !showLink) return null;
 
@@ -1243,7 +1466,7 @@ function MessageList({ messages, isStreaming }) {
         )}
         {showLink && (
           <a
-            href={link}
+            href={linkStr}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#0EA5E9]/10 text-[#0284C7] border border-[#0EA5E9]/30 hover:bg-[#0EA5E9]/20"
@@ -1258,6 +1481,7 @@ function MessageList({ messages, isStreaming }) {
   return (
     <div ref={listRef} className="w-full h-full">
       <div className="max-w-3xl mx-auto">
+        {isStreaming && lastAssistantIndex < 0 && <ThinkingIndicator />}
         {messages.map((m, idx) => {
           const isUser = m.role === "user";
           const isLastAssistant = idx === lastAssistantIndex;
