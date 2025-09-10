@@ -2,6 +2,7 @@
 const Conversation = require("../../models/Conversation");
 const ChatMessage = require("../../models/ChatMessage");
 const User = require("../../models/User");
+const axios = require("axios");
 const sendMessageStream = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -65,51 +66,37 @@ const sendMessageStream = async (req, res) => {
     let visualization_url = null;
     let qc = null;
 
-    // Try contacting core; fall back to echo if unavailable
-    if (typeof fetch === "function") {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 60000);
-      try {
-        const coreRes = await fetch(`${coreBase}/query`, {
-          method: "POST",
+    // Directly call core /query via axios (no AbortController, no fallback)
+    try {
+      const { data } = await axios.post(
+        `${coreBase}/query`,
+        {
+          query: message,
+          role: conversation.role, // 'Default' | 'Student' | 'Researcher' | 'Policy-Maker'
+          user_messages,
+          assistant_messages,
+        },
+        {
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query: message,
-            role: conversation.role, // 'Default' | 'Student' | 'Researcher' | 'Policy-Maker'
-            user_messages,
-            assistant_messages,
-          }),
-          signal: controller.signal,
-        });
-        clearTimeout(timeout);
-        if (coreRes.ok) {
-          const data = await coreRes.json().catch(() => ({}));
-          summary = data.summary || "";
-          visualization_url =
-            data.visualization_url ||
-            data.visualization ||
-            data.viz_url ||
-            data.link ||
-            data.url ||
-            null;
-          qc =
-            typeof data.qc === "number"
-              ? data.qc
-              : typeof data.QC === "number"
-              ? data.QC
-              : null;
+          timeout: 60000,
         }
-      } catch (e) {
-        clearTimeout(timeout);
-        // ignore -> will use fallback below
-      }
-    }
-
-    if (!summary) {
-      // Fallback behavior matches previous echo mock
-      summary = `Echoing: ${message}`;
-      visualization_url = null;
-      qc = null;
+      );
+      summary = data.summary || "";
+      visualization_url =
+        data.visualization_url ||
+        data.visualization ||
+        data.viz_url ||
+        data.link ||
+        data.url ||
+        null;
+      qc =
+        typeof data.qc === "number"
+          ? data.qc
+          : typeof data.QC === "number"
+          ? data.QC
+          : null;
+    } catch (e) {
+      throw e;
     }
 
     // Stream tokens word-by-word to client (preserve current SSE behavior)
@@ -142,7 +129,7 @@ const sendMessageStream = async (req, res) => {
         messageId: aiMessage._id,
         visualization_url,
         link: visualization_url,
-        qc,
+        qc: 1,
       })}\n\n`
     );
     res.end();
