@@ -205,6 +205,60 @@ async def generate_time_series_tool(payload:dict):
     # Return a URL pointing to the served file
     return {"plot_url": f"http://localhost:7500/plots/{filename}"}
 
+async def generate_heatmap_tool(payload:dict):
+    from tools.heatmap_api import HeatmapPayload, generate_heatmap
+    params = HeatmapPayload(
+        payload=payload,
+        output="html",
+        title="Heatmap")
+    result = await generate_heatmap(params)
+    
+    html_content = result["plot"]
+    filename = f"{uuid.uuid4().hex}.html"
+    PLOT_DIR = "C:\\Users\\amaan\\Desktop\\Projects\\floatchart\\FloatChat_DebugDynasty_SiH\\core\\llm\\plots"
+    file_path = os.path.join(PLOT_DIR, filename)
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(html_content)
+
+    # Return a URL pointing to the served file
+    return {"plot_url": f"http://localhost:7500/plots/{filename}"}
+
+async def generate_map_points_tool(payload:dict):
+    from tools.map_points_api import MapPointsPayload, generate_map_points
+    params = MapPointsPayload(
+        payload=payload,
+        output="html",
+        title="Map-Points")
+    result = await generate_map_points(params)
+
+    html_content = result["plot"]
+    filename = f"{uuid.uuid4().hex}.html"
+    PLOT_DIR = "C:\\Users\\amaan\\Desktop\\Projects\\floatchart\\FloatChat_DebugDynasty_SiH\\core\\llm\\plots"
+    file_path = os.path.join(PLOT_DIR, filename)
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(html_content)
+
+    # Return a URL pointing to the served file
+    return {"plot_url": f"http://localhost:7500/plots/{filename}"}
+
+async def generate_time_series_compare_tool(payload:dict):
+    from tools.time_series_compare_api import CompareTimeSeriesPayload, generate_compare_time_series
+    params = CompareTimeSeriesPayload(
+        payload=payload,
+        output="html",
+        title="Time Series Comparison")
+    result = await generate_compare_time_series(params)
+
+    html_content = result["plot"]
+    filename = f"{uuid.uuid4().hex}.html"
+    PLOT_DIR = "C:\\Users\\amaan\\Desktop\\Projects\\floatchart\\FloatChat_DebugDynasty_SiH\\core\\llm\\plots"
+    file_path = os.path.join(PLOT_DIR, filename)
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(html_content)
+
+    # Return a URL pointing to the served file
+    return {"plot_url": f"http://localhost:7500/plots/{filename}"}
+
 
 if __name__ == "__main__":
     mcp.run(transport="http", port=8000)

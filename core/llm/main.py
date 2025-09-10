@@ -12,7 +12,7 @@ from models import QueryRequest, QueryResponse
 from constants import ORCHESTRATION_PROMPT, SQL_PROMPT, SYSTEM_PROMPT, GATEKEEPER_PROMPT, SUMMARY_PROMPT
 
 import asyncio
-from mcp_calls import generate_time_series_plot, run_query, fetch_schema
+from mcp_calls import generate_time_series_plot,generate_time_series_compare_plot,generate_map_points_plot, generate_heatmap_plot, run_query, fetch_schema
 app = FastAPI()
 
 llm_client = OpenAI(
@@ -129,7 +129,24 @@ async def query_endpoint(payload: QueryRequest):
         print("Time series generation result:", result)
         #return the plot url
         plot_url = result.structured_content["plot_url"]
-
+    elif visualization_name == "timeseries_compare":
+        params = {"structuredContent": query_results.structured_content}
+        result = await generate_time_series_compare_plot(params)
+        print("Time series Comparison generation result:", result)
+        #return the plot url
+        plot_url = result.structured_content["plot_url"]
+    elif visualization_name == "heatmap_grid":
+        params = {"structuredContent": query_results.structured_content}
+        result = await generate_heatmap_plot(params)
+        print("Heatmap generation result:", result)
+        #return the plot url
+        plot_url = result.structured_content["plot_url"]
+    elif visualization_name == "map_points":
+        params = {"structuredContent": query_results.structured_content}
+        result = await generate_map_points_plot(params)
+        print("Map points generation result:", result)
+        #return the plot url
+        plot_url = result.structured_content["plot_url"]
     #all the data has been received, now we need to make one final call to the llm to generate the final summary
     messages =[
         {"role": "system", "content": SYSTEM_PROMPT},

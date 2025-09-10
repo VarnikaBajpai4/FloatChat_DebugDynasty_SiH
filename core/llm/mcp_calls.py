@@ -16,3 +16,18 @@ async def generate_time_series_plot(params):
     async with mcp_client:
         result = await mcp_client.call_tool("generate_time_series_tool", {"payload": params})
         return result
+    
+async def generate_heatmap_plot(params):
+    async with mcp_client:
+        result = await mcp_client.call_tool("generate_heatmap_tool", {"payload": params})
+        return result
+
+async def generate_map_points_plot(params):
+    async with mcp_client:
+        result = await mcp_client.call_tool("generate_map_points_tool", {"payload": params})
+        return result
+
+async def generate_time_series_compare_plot(params):
+    async with mcp_client:
+        result = await mcp_client.call_tool("generate_time_series_compare_tool", {"payload": params})
+        return result
