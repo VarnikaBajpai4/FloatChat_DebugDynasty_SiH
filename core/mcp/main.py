@@ -205,6 +205,7 @@ async def generate_time_series_tool(payload:dict):
     # Return a URL pointing to the served file
     return {"plot_url": f"http://localhost:7500/plots/{filename}"}
 
+@mcp.tool()
 async def generate_heatmap_tool(payload:dict):
     from tools.heatmap_api import HeatmapPayload, generate_heatmap
     params = HeatmapPayload(
@@ -223,6 +224,7 @@ async def generate_heatmap_tool(payload:dict):
     # Return a URL pointing to the served file
     return {"plot_url": f"http://localhost:7500/plots/{filename}"}
 
+@mcp.tool()
 async def generate_map_points_tool(payload:dict):
     from tools.map_points_api import MapPointsPayload, generate_map_points
     params = MapPointsPayload(
@@ -241,6 +243,7 @@ async def generate_map_points_tool(payload:dict):
     # Return a URL pointing to the served file
     return {"plot_url": f"http://localhost:7500/plots/{filename}"}
 
+@mcp.tool()
 async def generate_time_series_compare_tool(payload:dict):
     from tools.time_series_compare_api import CompareTimeSeriesPayload, generate_compare_time_series
     params = CompareTimeSeriesPayload(
