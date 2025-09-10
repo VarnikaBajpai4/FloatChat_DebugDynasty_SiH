@@ -46,19 +46,14 @@ const sendMessageStream = async (req, res) => {
     res.write(`data: ${JSON.stringify({ status: "processing" })}\n\n`);
 
     // Build context for core query
-    const [userHistoryDocs, assistantHistoryDocs] = await Promise.all([
-      ChatMessage.find({ conversationId, role: "user" })
-        .sort({ timestamp: -1 })
-        .limit(15)
-        .select("content"),
-      ChatMessage.find({ conversationId, role: "assistant" })
-        .sort({ timestamp: -1 })
-        .limit(15)
-        .select("content"),
-    ]);
+    const historyDocs = await ChatMessage.find({ conversationId })
+      .sort({ timestamp: 1 }) // Sort by timestamp in ascending order
+      .select("content role");
 
-    const user_messages = userHistoryDocs.map((m) => m.content).reverse();
-    const assistant_messages = assistantHistoryDocs.map((m) => m.content).reverse();
+    const messages = historyDocs.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
 
     const coreBase = process.env.CORE_BASE_URL || "http://localhost:7500";
 
@@ -68,32 +63,26 @@ const sendMessageStream = async (req, res) => {
 
     // Directly call core /query via axios (no AbortController, no fallback)
     try {
-      const { data } = await axios.post(
+      const response = await axios.post(
         `${coreBase}/query`,
         {
-          query: message,
+          message,
           role: conversation.role, // 'Default' | 'Student' | 'Researcher' | 'Policy-Maker'
-          user_messages,
-          assistant_messages,
+          history: messages,
         },
         {
           headers: { "Content-Type": "application/json" },
           timeout: 60000,
         }
       );
-      summary = data.summary || "";
-      visualization_url =
-        data.visualization_url ||
-        data.visualization ||
-        data.viz_url ||
-        data.link ||
-        data.url ||
-        null;
+      console.log(response.data)
+      summary = response.data.text;
+      visualization_url = response.data.links || null;
       qc =
-        typeof data.qc === "number"
-          ? data.qc
-          : typeof data.QC === "number"
-          ? data.QC
+        typeof response.data.qc === "number"
+          ? response.data.qc
+          : typeof response.data.QC === "number"
+          ? response.data.QC
           : null;
     } catch (e) {
       throw e;
