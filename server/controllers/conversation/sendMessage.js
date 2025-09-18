@@ -61,18 +61,58 @@ const sendMessageStream = async (req, res) => {
     let visualization_url = null;
     let qc = null;
 
+    // Helper to close polygon loop in message without altering stored user content
+    const closePolygonLoopIfPresent = (msg) => {
+      try {
+        const lines = String(msg || "").split(/\r?\n/);
+        const idx = lines.findIndex((l) => /Polygon\s*\(lat,\s*lon\)/i.test(l));
+        if (idx === -1) return msg;
+
+        const line = lines[idx];
+        const before = line.split(":")[0] || line;
+        const coordsStr = line.includes(":") ? line.split(":").slice(1).join(":") : "";
+
+        const items = coordsStr.split("|").map((s) => s.trim()).filter(Boolean);
+        const coords = [];
+        for (const it of items) {
+          const m = it.match(/(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)/);
+          if (m) {
+            const lat = parseFloat(m[1]);
+            const lng = parseFloat(m[2]);
+            if (Number.isFinite(lat) && Number.isFinite(lng)) coords.push([lat, lng]);
+          }
+        }
+
+        if (coords.length < 3) return msg; // not a polygon
+        const [fLat, fLng] = coords[0];
+        const [lLat, lLng] = coords[coords.length - 1];
+        const isClosed = Math.abs(fLat - lLat) < 1e-9 && Math.abs(fLng - lLng) < 1e-9;
+        if (!isClosed) coords.push([fLat, fLng]);
+
+        const rebuilt = coords
+          .map(([lat, lng]) => `${lat.toFixed(4)},${lng.toFixed(4)}`)
+          .join(" | ");
+        lines[idx] = `${before}: ${rebuilt}`;
+        return lines.join("\n");
+      } catch {
+        return msg;
+      }
+    };
+
+    const messageForCore = closePolygonLoopIfPresent(message);
+
     // Directly call core /query via axios (no AbortController, no fallback)
     try {
       const response = await axios.post(
         `${coreBase}/query`,
         {
-          message,
+          message: messageForCore,
           role: conversation.role, // 'Default' | 'Student' | 'Researcher' | 'Policy-Maker'
           history: messages,
         },
         {
           headers: { "Content-Type": "application/json" },
-          timeout: 60000,
+          timeout: Number(process.env.CORE_QUERY_TIMEOUT_MS || 180000),
         }
       );
       console.log(response.data)
@@ -97,6 +137,7 @@ const sendMessageStream = async (req, res) => {
     }
 
     // Save assistant response with metadata from core (if any)
+    const finalLink = Array.isArray(visualization_url) ? visualization_url[0] : visualization_url;
     const aiMessage = await ChatMessage.create({
       conversationId,
       userId,
@@ -104,6 +145,7 @@ const sendMessageStream = async (req, res) => {
       content: summary,
       metadata: {
         visualization_url,
+        link: finalLink || null,
         qc,
       },
     });
@@ -116,9 +158,9 @@ const sendMessageStream = async (req, res) => {
     res.write(
       `data: ${JSON.stringify({
         messageId: aiMessage._id,
-        visualization_url,
-        link: visualization_url,
-        qc: 1,
+        visualization_url: finalLink || null,
+        link: finalLink || null,
+        qc,
       })}\n\n`
     );
     res.end();

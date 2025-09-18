@@ -31,6 +31,16 @@ app.use('/api/predictions', require('./routes/predictions.router'));
 
 // Server
 const PORT = process.env.PORT || 5555;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+// Bump HTTP server timeouts to support long-running requests/streams
+// headersTimeout: time allowed to receive all headers after socket connection
+server.headersTimeout = Number(process.env.HEADERS_TIMEOUT_MS || 300000); // 5 minutes
+
+// requestTimeout: how long to wait for the entire request (0 = no timeout)
+server.requestTimeout = Number(process.env.REQUEST_TIMEOUT_MS || 0);
+
+// keepAliveTimeout: how long to keep idle keep-alive connections open
+server.keepAliveTimeout = Number(process.env.KEEP_ALIVE_TIMEOUT_MS || 120000);

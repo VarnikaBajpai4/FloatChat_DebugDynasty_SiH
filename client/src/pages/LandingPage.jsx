@@ -2,8 +2,8 @@ import { motion, useScroll, useTransform, useInView } from "framer-motion";
 import SignupButton from "@/components/auth/SignupButton";
 import LoginButton from "@/components/auth/LoginButton";
 import { Card } from "@/components/ui/card";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { useTheme } from "@/components/theme-provider";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { useTheme } from "@/components/ui/theme-provider";
 import {
   MessageCircle,
   Map,
@@ -16,13 +16,13 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { useRef, useEffect } from "react";
-import Marquee from "@/components/Marquee";
-import FloatingJellyfish from "@/components/FloatingJellyfish";
-import OceanWaves from "@/components/OceanWaves";
-import FloatingParticles from "@/components/FloatingParticles";
+import Marquee from "@/components/ui/Marquee";
+import FloatingJellyfish from "@/components/ui/FloatingJellyfish";
+import OceanWaves from "@/components/ui/OceanWaves";
+import FloatingParticles from "@/components/ui/FloatingParticles";
 import Footer from "@/components/Footer";
-import FeatureRow from "@/components/FeatureRow";
-import CardyChips from "@/components/CardyChips";
+import FeatureRow from "@/components/ui/FeatureRow";
+import CardyChips from "@/components/ui/CardyChips";
 
 export default function LandingPage() {
   const { scrollYProgress } = useScroll();

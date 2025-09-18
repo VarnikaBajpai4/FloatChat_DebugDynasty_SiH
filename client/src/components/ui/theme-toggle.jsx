@@ -2,7 +2,7 @@
 
 import { Moon, Sun } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useTheme } from "@/components/theme-provider"
+import { useTheme } from "@/components/ui/theme-provider"
 import { motion } from "framer-motion"
 
 export function ThemeToggle() {

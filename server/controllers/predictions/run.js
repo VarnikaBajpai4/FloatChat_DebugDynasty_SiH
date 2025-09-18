@@ -130,7 +130,7 @@ module.exports = async function runPrediction(req, res) {
       '--json',
     ];
 
-    const timeoutMs = Number(process.env.PREDICT_TIMEOUT_MS || 60000);
+    const timeoutMs = Number(process.env.PREDICT_TIMEOUT_MS || 180000);
     const pythonBin = pickPythonBin(ROOT);
     const { code, stdout, stderr } = await runPython(pythonBin, args, { cwd: CORE_DIR, timeoutMs });
 

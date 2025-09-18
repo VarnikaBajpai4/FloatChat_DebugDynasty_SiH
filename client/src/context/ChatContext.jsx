@@ -19,11 +19,15 @@ export function ChatProvider({ children }) {
   const [loadingConvos, setLoadingConvos] = useState(false);
   const [activeId, setActiveId] = useState(null);
 
-  // messagesByConv: { [conversationId]: Array<{_id?, id?, role: 'user'|'assistant', content: string}> }
+  // messagesByConv: { [conversationId]: Array<{_id?, id?, role: 'user'|'assistant', content: string, metadata?: { link?: string|null, qc?: number, final?: boolean }}> }
   const [messagesByConv, setMessagesByConv] = useState({});
 
   // Track an active streaming controller to abort if needed
   const streamAbortRef = useRef(null);
+  const [streamingConvId, setStreamingConvId] = useState(null);
+
+  // Track per-conversation prediction lock (prevents mode switching after a prediction run)
+  const [predLockedByConv, setPredLockedByConv] = useState({});
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -71,10 +75,36 @@ export function ChatProvider({ children }) {
         });
         if (!res.ok) throw new Error("Failed to load messages");
         const data = await res.json();
-        // API returns raw array of messages
+
+        // Normalize assistant messages so metadata/link/qc are consistently present
+        const normMsgs = (Array.isArray(data) ? data : []).map((m) => {
+          if (m?.role !== "assistant") return m;
+          const qcMerged = (m?.metadata?.qc ?? m?.qc);
+          const qcVal = typeof qcMerged === "number" ? qcMerged : null;
+
+          const rawLink =
+            m?.metadata?.link ??
+            m?.link ??
+            m?.visualization_url ??
+            m?.metadata?.visualization_url ??
+            null;
+
+          return {
+            ...m,
+            metadata: {
+              ...(m?.metadata || {}),
+              link: rawLink ?? (m?.metadata?.link ?? null),
+              qc: qcVal,
+            },
+            link: rawLink ?? m?.link ?? m?.visualization_url ?? undefined,
+            visualization_url: rawLink ?? m?.visualization_url ?? undefined,
+            qc: typeof qcVal === "number" ? qcVal : m?.qc,
+          };
+        });
+
         setMessagesByConv((prev) => ({
           ...prev,
-          [conversationId]: Array.isArray(data) ? data : [],
+          [conversationId]: normMsgs,
         }));
       } catch {
         setMessagesByConv((prev) => ({ ...prev, [conversationId]: [] }));
@@ -133,7 +163,43 @@ export function ChatProvider({ children }) {
     }
   }, []);
 
+  // Patch arbitrary conversation metadata (role/mode/title)
+  const updateConversationMeta = useCallback(async (conversationId, patch = {}) => {
+    const body = {};
+    if (typeof patch.title === "string" && patch.title.trim()) body.title = patch.title.trim();
+    if (typeof patch.role === "string") body.role = patch.role;
+    if (typeof patch.mode === "string") body.mode = patch.mode;
+
+    if (!Object.keys(body).length) return null;
+
+    const res = await fetch(`${API_BASE}/api/chat/${conversationId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error("Failed to update conversation");
+    const data = await res.json();
+    if (data?.success && data.conversation) {
+      setConversations((prev) =>
+        prev.map((c) => (c.id === conversationId ? { ...c, ...data.conversation } : c))
+      );
+    }
+    return data;
+  }, []);
+
+  // Mark conversation as prediction-locked (no UI mode switching thereafter)
+  const setPredLocked = useCallback((conversationId, locked) => {
+    setPredLockedByConv((prev) => ({ ...prev, [conversationId]: !!locked }));
+  }, []);
+
   const deleteConversation = useCallback(async (conversationId) => {
+    // If a stream is in-flight for this conversation, abort it first
+    if (activeId === conversationId && streamAbortRef.current) {
+      try { streamAbortRef.current.abort(); } catch {}
+      streamAbortRef.current = null;
+    }
+
     const res = await fetch(`${API_BASE}/api/chat/${conversationId}`, {
       method: "DELETE",
       credentials: "include",
@@ -143,6 +209,11 @@ export function ChatProvider({ children }) {
     if (data?.success) {
       setConversations((prev) => prev.filter((c) => c.id !== conversationId));
       setMessagesByConv((prev) => {
+        const copy = { ...prev };
+        delete copy[conversationId];
+        return copy;
+      });
+      setPredLockedByConv((prev) => {
         const copy = { ...prev };
         delete copy[conversationId];
         return copy;
@@ -256,6 +327,36 @@ export function ChatProvider({ children }) {
               try {
                 const payload = JSON.parse(dataStr);
                 finalAssistantId = payload?.messageId || null;
+
+                // Extract metadata (visualization link + qc) from server payload
+                const rawLink = Array.isArray(payload?.link)
+                  ? payload.link[0]
+                  : (payload?.link || payload?.visualization_url || null);
+                const qcVal = typeof payload?.qc === "number" ? payload.qc : null;
+
+                // Update last assistant message with metadata and mark as final
+                setMessagesByConv((prev) => {
+                  const list = prev[conversationId] || [];
+                  for (let i = list.length - 1; i >= 0; i--) {
+                    if (list[i].role === "assistant") {
+                      const updated = [...list];
+                      updated[i] = {
+                        ...updated[i],
+                        metadata: {
+                          ...(updated[i].metadata || {}),
+                          link: rawLink || null,
+                          qc: qcVal,
+                          final: true,
+                        },
+                        link: rawLink ?? updated[i].link,
+                        visualization_url: rawLink ?? updated[i].visualization_url,
+                        qc: typeof qcVal === "number" ? qcVal : updated[i].qc,
+                      };
+                      return { ...prev, [conversationId]: updated };
+                    }
+                  }
+                  return prev;
+                });
               } catch {
                 // ignore
               }
@@ -309,6 +410,7 @@ export function ChatProvider({ children }) {
       loadingConvos,
       activeId,
       messagesByConv,
+      predLockedByConv,
 
       // actions
       setActiveId,
@@ -316,8 +418,10 @@ export function ChatProvider({ children }) {
       openConversation,
       createConversation,
       renameConversation,
+      updateConversationMeta,
       deleteConversation,
       sendMessage,
+      setPredLocked,
 
       // helpers
       uiModeToServer,
@@ -328,12 +432,15 @@ export function ChatProvider({ children }) {
       loadingConvos,
       activeId,
       messagesByConv,
+      predLockedByConv,
       fetchConversations,
       openConversation,
       createConversation,
       renameConversation,
+      updateConversationMeta,
       deleteConversation,
       sendMessage,
+      setPredLocked,
     ]
   );
 
