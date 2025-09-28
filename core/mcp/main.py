@@ -197,7 +197,7 @@ async def generate_time_series_tool(payload:dict):
     
     html_content = result["plot"]
     filename = f"{uuid.uuid4().hex}.html"
-    PLOT_DIR = "C:\\SiH2025\\core\\llm\\plots"
+    PLOT_DIR = os.getenv("PLOT_DIR")
     file_path = os.path.join(PLOT_DIR, filename)
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(html_content)
@@ -216,7 +216,7 @@ async def generate_heatmap_tool(payload:dict):
     
     html_content = result["plot"]
     filename = f"{uuid.uuid4().hex}.html"
-    PLOT_DIR = "C:\\SiH2025\\core\\llm\\plots"
+    PLOT_DIR = os.getenv("PLOT_DIR")
     file_path = os.path.join(PLOT_DIR, filename)
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(html_content)
@@ -235,7 +235,7 @@ async def generate_map_points_tool(payload:dict):
 
     html_content = result["plot"]
     filename = f"{uuid.uuid4().hex}.html"
-    PLOT_DIR = "C:\\SiH2025\\core\\llm\\plots"
+    PLOT_DIR = os.getenv("PLOT_DIR")
     file_path = os.path.join(PLOT_DIR, filename)
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(html_content)
@@ -254,7 +254,7 @@ async def generate_time_series_compare_tool(payload:dict):
 
     html_content = result["plot"]
     filename = f"{uuid.uuid4().hex}.html"
-    PLOT_DIR = "C:\\SiH2025\\core\\llm\\plots"
+    PLOT_DIR = os.getenv("PLOT_DIR")
     file_path = os.path.join(PLOT_DIR, filename)
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(html_content)
