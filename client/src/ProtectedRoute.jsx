@@ -1,15 +1,13 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
-import { useEffect } from "react";
+import Loader from "./components/ui/Loader";
 
 export default function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  useEffect(() => {}, [user, loading]);
-
   if (loading) {
-    return <div>Loading...</div>;
+    return <Loader label="Authenticating..." fullScreen />;
   }
 
   if (!user) {
