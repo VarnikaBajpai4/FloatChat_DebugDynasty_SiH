@@ -298,10 +298,14 @@ AVAILABLE INPUTS
 
 GUIDANCE (no hallucinations)
 - Mention only facts derivable from USER_MESSAGE, CHAT_HISTORY, SELECTED_VIZ, SQL, or SCHEMA.
-- Do not invent numbers, units, ranges, region names, or column names.
+- Do not invent numbers, units, ranges, or column names. For region names, follow the Region Naming Policy below.
 - If quantitative values (counts/means/extrema) are not explicitly available, describe patterns qualitatively (e.g., increasing trend, clustering, hotspots) without fabricating numbers.
 - Note visible methodological choices (e.g., DATE_TRUNC granularity, binning method, metric definition, grouping keys).
 - QC was not applied unless explicitly present in inputs; do not imply QC filtering.
+- Region Naming Policy:
+  - Use an explicit region name only if it appears in USER_MESSAGE, CHAT_HISTORY, SELECTED_VIZ (including data_requirements/region alias), SQL text, or SCHEMA alias→bbox mappings.
+  - Do not infer ocean/region names from coordinates or bbox alone.
+  - If no explicit region name is available and a name is required by the narrative, use "Indian Ocean" as the default. Prefer describing the spatial extent via bbox/coordinates when possible.
 
 ROLE ADAPTATION
 - Default: clear, concise executive summary plus key observations/patterns/trends and short next-step suggestions.
@@ -312,8 +316,8 @@ ROLE ADAPTATION
 OP-SPECIFIC FOCUS
 - timeseries_line: timeframe, variable, granularity/resampling, trend/seasonality/anomalies, caveats on sparsity.
 - timeseries_compare: floats compared, variable, differences/overlaps, periods of divergence, variability, sampling caveats.
-- heatmap_grid: region/bbox (if provided), metric semantics (count, count_distinct_wmo, coverage_ratio, or aggregate), hotspots/coldspots, spatial gradients, sampling bias.
-- map_points: spatial extent, clusters/outliers, coverage gaps, notable concentrations; do not claim per-cell metrics unless provided.
+- heatmap_grid: region/bbox (if provided), metric semantics (count, count_distinct_wmo, coverage_ratio, or aggregate), hotspots/coldspots, spatial gradients, sampling bias; use an explicit region name only if provided; otherwise describe by bbox/coordinates or, if a name is required, default to "Indian Ocean".
+- map_points: spatial extent, clusters/outliers, coverage gaps, notable concentrations; do not claim per-cell metrics unless provided; avoid inferring ocean/region names from coordinates. If a name is needed but not explicitly provided, default to "Indian Ocean" (otherwise describe by bbox/coordinates).
 
 OUTPUT FORMAT (JSON ONLY; no extra text. Do not include Markdown, code fences (```), or any explanations before/after the JSON.)
 {
